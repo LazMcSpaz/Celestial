@@ -762,6 +762,112 @@ const ZODIAC_SIGNS=['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo'
 const ZODIAC_DESCS=['Bold, pioneering, self-asserting. Rules new beginnings and initiative.','Grounded, resourceful, patient. Rules wealth, beauty, and physical stability.','Curious, communicative, adaptable. Rules information exchange and short travel.','Nurturing, intuitive, protective. Rules home, family, and emotional security.','Expressive, generous, dramatic. Rules creativity, performance, and identity.','Analytical, practical, service-oriented. Rules health, work, and daily routines.','Balanced, diplomatic, harmony-seeking. Rules relationships and fairness.','Intense, transformative, private. Rules power, death/rebirth, and the occult.','Expansive, philosophical, adventurous. Rules higher learning and long journeys.','Ambitious, disciplined, strategic. Rules career, authority, and legacy.','Innovative, humanitarian, unconventional. Rules technology and collective progress.','Empathic, spiritual, dissolving. Rules the unconscious, dreams, and transcendence.'];
 const ASPECTS=[{name:'Conjunction (0°)',symbol:'☌',desc:'Two planets occupying the same degree of the zodiac. Their energies merge and intensify each other.'},{name:'Sextile (60°)',symbol:'⚹',desc:'A harmonious aspect representing opportunity and ease. The two planets\' energies cooperate.'},{name:'Trine (120°)',symbol:'△',desc:'The most flowing of all aspects. Natural talent, ease, and luck. Energy moves effortlessly between the two planets.'},{name:'Square (90°)',symbol:'□',desc:'Tension and friction between two planets\' energies. Challenges and obstacles that force growth.'},{name:'Opposition (180°)',symbol:'☍',desc:'Two planets directly across the zodiac from each other. Creates polarity and the need to balance opposing forces.'}];
 
+// ─── ASPECT INTERPRETATION DATA ───────────────────────────────────────────
+const PLANET_DOMAINS={
+  Sun:'identity & will',Moon:'emotion & instinct',Mercury:'mind & communication',
+  Venus:'love & values',Mars:'drive & action',Jupiter:'expansion & opportunity',
+  Saturn:'discipline & structure',Uranus:'innovation & freedom',
+  Neptune:'vision & intuition',Chiron:'healing & vulnerability',
+  'North Node':'karmic direction','Black Moon Lilith':'the shadow self'
+};
+const SIGN_MODES={
+  Aries:'with bold initiative',Taurus:'with patient groundedness',
+  Gemini:'with restless curiosity',Cancer:'with nurturing intuition',
+  Leo:'with expressive confidence',Virgo:'with analytical precision',
+  Libra:'with diplomatic grace',Scorpio:'with penetrating intensity',
+  Sagittarius:'with expansive optimism',Capricorn:'with disciplined strategy',
+  Aquarius:'with detached innovation',Pisces:'with empathic sensitivity'
+};
+// For each planet pair: f=flowing (trine/sextile), t=tense (square/opposition), m=merged (conjunction)
+const PAIR_STORIES={
+  'Sun-Moon':{
+    f:'Conscious intention and emotional instinct align — commitments carry deep personal resonance and staying power.',
+    t:'Inner conflict between what you want and what you feel; impulsive reactions or self-doubt may surface.',
+    m:'Will and feeling merge into a unified force — intentions set now carry lasting personal resonance.'},
+  'Sun-Mercury':{
+    f:'Purpose and clear thinking move together — communication is confident and ideas translate into decisive forward motion.',
+    t:'Ego can override good judgment; overconfidence or impatience in communication may cause missteps.',
+    m:'Identity and intellect fuse — conviction is strong, though objectivity may be limited.'},
+  'Sun-Venus':{
+    f:'Creative will and social grace align — excellent for financial proposals, partnerships, and confident self-presentation.',
+    t:'Self-interest and relationship needs pull apart; financial or relational decisions may feel one-sided.',
+    m:'Identity and aesthetic sense fuse — charm heightens and personal investment strengthens creative and financial ventures.'},
+  'Sun-Mars':{
+    f:'Purpose and drive amplify each other — energy is high, initiative is rewarded, and confident action moves goals forward.',
+    t:'Willpower and aggression clash; ego conflicts or impatience may undermine goals that require cooperation.',
+    m:'Identity and drive fuse into powerful momentum — excellent for bold starts, but watch for hot-headedness.'},
+  'Sun-Jupiter':{
+    f:'Purpose and expansion align — opportunities appear naturally and confidence in bold moves is well-founded today.',
+    t:'Overconfidence or overextension; ambitious plans feel certain but may lack the practical grounding they need.',
+    m:'Identity and optimism merge — a naturally expansive day; excellent for bold beginnings and confident launches.'},
+  'Sun-Saturn':{
+    f:'Purpose and discipline move together — structured effort toward long-term goals is rewarded; serious commitments land well.',
+    t:'Ambition meets resistance; delays or self-doubt slow progress, though patient effort now pays dividends later.',
+    m:'Will and responsibility unite — decisions carry long-term weight; excellent for serious, lasting commitments.'},
+  'Mercury-Jupiter':{
+    f:'Thinking expands naturally — big-picture clarity and optimistic communication support negotiations and proposals.',
+    t:'Grand thinking outpaces practical detail; read the fine print and avoid overlooking important specifics.',
+    m:'Mind and opportunity merge — ideas flow expansively; excellent for brainstorming, pitching, and intellectual ventures.'},
+  'Mercury-Saturn':{
+    f:'Disciplined, precise thinking — excellent for finalizing contracts, careful planning, and structured productive conversations.',
+    t:'Rigid or overly cautious thinking may stall progress; avoid letting pessimism obscure realistic options.',
+    m:'Mental focus sharpens — precision in agreements and contracts is heightened; commit important thoughts to writing.'},
+  'Mercury-Venus':{
+    f:'Thinking and relating harmonize — conversations are persuasive and pleasant, and negotiations flow smoothly.',
+    t:'Logic and desire pull apart; social decisions may clash with practical needs.',
+    m:'Mind and heart speak as one — charm in communication peaks; excellent for proposals, pitches, and creative work.'},
+  'Venus-Jupiter':{
+    f:'One of the most classically favorable combinations — abundance, generosity, and good fortune amplify financial and relational matters.',
+    t:'Overindulgence or optimism beyond reality; financial enthusiasm may outpace solid foundations.',
+    m:'Values and expansion merge — a powerfully fortunate day for financial decisions and relational investments.'},
+  'Venus-Mars':{
+    f:'Attraction and drive cooperate — magnetic presence supports confident financial moves and bold relational decisions.',
+    t:'Desire and assertiveness clash — friction in partnerships or impulsive financial decisions may arise.',
+    m:'Attraction and ambition fuse — magnetic energy with strong desire; excellent for bold moves but watch impulsiveness.'},
+  'Mars-Jupiter':{
+    f:'Drive and opportunity align — motivated, optimistic action supports pursuing ambitious goals with confidence.',
+    t:'Overreach or recklessness; excess confidence may lead to taking on more than can be sustained.',
+    m:'Drive and opportunity fuse — enthusiasm and ambition peak; bold action is favored but overextension is possible.'},
+  'Mars-Saturn':{
+    f:'Drive and discipline work in tandem — patient, focused effort toward difficult goals is rewarded today.',
+    t:'Drive is blocked by structure — frustration, delays, or restrictions hinder progress; patience is essential.',
+    m:'Determination and discipline unite — a day for serious sustained effort rather than quick wins.'},
+  'Jupiter-Saturn':{
+    f:'Expansion and structure balance each other — realistic optimism and long-term planning flow together naturally.',
+    t:'Growth ambitions meet hard limits; frustration between wanting to expand and needing to consolidate.',
+    m:'Optimism and discipline merge — a rare combination favoring strategic, long-term ventures and mature decisions.'},
+  'Moon-Jupiter':{
+    f:'Emotional intelligence and optimism flow together — warmth and intuitive confidence support relational and financial matters.',
+    t:'Feelings amplify beyond what the situation warrants; emotional overreach may cloud sound judgment.',
+    m:'Feeling and abundance merge — emotional generosity peaks; excellent for nurturing relationships and heartfelt ventures.'},
+  'Moon-Venus':{
+    f:'Emotion and attraction harmonize — warmth and empathy make this excellent for partnerships and creative collaboration.',
+    t:'Emotional needs and relational values pull apart; oversensitivity or jealousy may surface.',
+    m:'Heart and desire unite — deep emotional attunement; excellent for heartfelt creative work and intimate partnerships.'},
+  'Moon-Saturn':{
+    f:'Emotional steadiness and discipline align — grounded, structured effort; commitments made now are deeply felt and honored.',
+    t:'Emotions feel heavy or suppressed — duty and feeling conflict, creating a sense of emotional limitation.',
+    m:'Feeling and responsibility merge — emotional seriousness; excellent for deep commitments but avoid suppression.'},
+  'Moon-Mars':{
+    f:'Emotional intelligence and drive cooperate — assertive, emotionally engaged action supports decisive forward movement.',
+    t:'Emotions and aggression combine — reactivity, impatience, and hasty decisions may arise.',
+    m:'Emotion and drive fuse — passionate energy; excellent for motivated action but watch for impulsive reactions.'},
+};
+function buildAspectDescription(asp,positions){
+  const k=`${asp.p1}-${asp.p2}`,kr=`${asp.p2}-${asp.p1}`;
+  const story=PAIR_STORIES[k]||PAIR_STORIES[kr];
+  const tone=asp.harmony==='positive'?'f':asp.harmony==='negative'?'t':'m';
+  const main=story?story[tone]:(asp.harmony==='positive'
+    ?`${asp.p1}'s ${PLANET_DOMAINS[asp.p1]||'energy'} and ${asp.p2}'s ${PLANET_DOMAINS[asp.p2]||'energy'} work in harmony today.`
+    :asp.harmony==='negative'
+      ?`Tension between ${asp.p1}'s ${PLANET_DOMAINS[asp.p1]||'energy'} and ${asp.p2}'s ${PLANET_DOMAINS[asp.p2]||'energy'} requires patience and care.`
+      :`${asp.p1}'s and ${asp.p2}'s energies merge and intensify each other.`);
+  const p1=positions[asp.p1],p2=positions[asp.p2];
+  const s1=p1?p1.sign:'',s2=p2?p2.sign:'';
+  const signLine=s1&&s2?` ${asp.p1} in ${s1} channels its energy ${SIGN_MODES[s1]||''}; ${asp.p2} in ${s2} acts ${SIGN_MODES[s2]||''}.`:'';
+  return main+signLine;
+}
+
 const RESULT_WINDOWS=[
   {month:'MAR',day:6,range:'— Mar 7',quality:'optimal',headline:'Venus enters Aries · Jupiter sextile Sun',why:'<strong>Venus</strong> moves into bold Aries while <strong>Jupiter</strong> expands what it touches — ideal for confident financial action and launching new ventures.'},
   {month:'MAR',day:17,range:'— Mar 19',quality:'optimal',headline:'Mercury trine Saturn · Moon in Capricorn',why:'<strong>Mercury</strong> in harmony with <strong>Saturn</strong> creates ideal conditions for signing agreements. <strong>Capricorn Moon</strong> adds pragmatic focus.'},
@@ -900,8 +1006,8 @@ function openDateSheet(day,score,sky){
   const rxList=Object.entries(sky.positions).filter(([,v])=>v.retrograde).map(([k])=>k);
   let headline=Ephemeris.generateHeadline(sky);
   let bodyHtml='';
-  positive.slice(0,2).forEach(a=>{const p1m=PLANETS.find(p=>p.key===a.p1);const p2m=PLANETS.find(p=>p.key===a.p2);const r1=p1m?p1m.rules.split(',')[0]:'';const r2=p2m?p2m.rules.split(',')[0]:'';bodyHtml+=`<div style="margin-bottom:8px;"><strong>${a.p1}</strong> (${r1}) ${a.name}s <strong>${a.p2}</strong> (${r2}) — harmonious flow supporting this area today.</div>`;});
-  negative.slice(0,1).forEach(a=>{bodyHtml+=`<div style="margin-bottom:8px;color:var(--red-text)"><strong>${a.p1}</strong> ${a.name}s <strong>${a.p2}</strong> — friction may complicate matters.</div>`;});
+  positive.slice(0,2).forEach(a=>{const desc=buildAspectDescription(a,sky.positions);bodyHtml+=`<div style="margin-bottom:14px;"><div style="margin-bottom:4px;"><strong>${a.p1}</strong> <span style="color:#7dcf9e;font-size:11px;letter-spacing:.04em;">${a.symbol} ${a.name}s</span> <strong>${a.p2}</strong></div><div style="font-size:12px;line-height:1.7;color:var(--cream-dim);">${desc}</div></div>`;});
+  negative.slice(0,1).forEach(a=>{const desc=buildAspectDescription(a,sky.positions);bodyHtml+=`<div style="margin-bottom:14px;"><div style="margin-bottom:4px;color:var(--red-text);"><strong>${a.p1}</strong> <span style="font-size:11px;letter-spacing:.04em;">${a.symbol} ${a.name}s</span> <strong>${a.p2}</strong></div><div style="font-size:12px;line-height:1.7;color:var(--cream-dim);">${desc}</div></div>`;});
   if(rxList.length>0)bodyHtml+=`<div style="margin-top:6px;color:var(--cream-dim)">Retrograde: ${rxList.join(', ')} — review rather than initiate.</div>`;
   if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon'].sign} — no major aspects strongly favor or challenge this area today.</div>`;
   openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[calMonth-1]} ${calYear} · ${CAT_NAMES[activeCat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div><div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
