@@ -302,7 +302,7 @@ const Ephemeris = (() => {
       if (asp.harmony === 'negative') score -= (1 + orbBonus) * weight;
       if (asp.harmony === 'neutral') {
         const powerPairs = [['Jupiter','Venus'],['Jupiter','Sun'],['Jupiter','Moon']];
-        if (powerPairs.some(([a,b]) => (asp.p1===a&&asp.p2===b)||(asp.p1===b&&asp.p2===a))) score += 1;
+        if (powerPairs.some(([a,b]) => (asp.p1===a&&asp.p2===b)||(asp.p1===b&&asp.p2===a))) score += 0.5;
       }
     });
 
@@ -316,10 +316,18 @@ const Ephemeris = (() => {
       if (phase > 0.45 && phase < 0.55) score += 1;
     }
 
+    // Balanced dignity/detriment modifiers — bidirectional so they average to zero
+    // over the full zodiac cycle and don't structurally inflate scores
     const venSign = positions['Venus'] ? positions['Venus'].sign : '';
     const jupSign = positions['Jupiter'] ? positions['Jupiter'].sign : '';
-    if (venSign === 'Taurus' || venSign === 'Libra') score += 1;
-    if (jupSign === 'Sagittarius' || jupSign === 'Pisces' || jupSign === 'Cancer') score += 1;
+    if      (venSign === 'Taurus' || venSign === 'Libra')    score += 0.5;  // domicile
+    else if (venSign === 'Pisces')                            score += 0.25; // exaltation
+    else if (venSign === 'Aries'  || venSign === 'Scorpio')  score -= 0.5;  // detriment
+    else if (venSign === 'Virgo')                             score -= 0.25; // fall
+    if      (jupSign === 'Sagittarius' || jupSign === 'Pisces') score += 0.5;  // domicile
+    else if (jupSign === 'Cancer')                              score += 0.25; // exaltation
+    else if (jupSign === 'Gemini'  || jupSign === 'Virgo')      score -= 0.5;  // detriment
+    else if (jupSign === 'Capricorn')                           score -= 0.25; // fall
 
     if (score >= 4) return 3;
     if (score >= 2) return 2;
