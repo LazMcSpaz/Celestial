@@ -240,9 +240,11 @@ const Ephemeris = (() => {
   // userLocation: { lat, lon } or null. useCurrentTime: true for live readings (houses shift hourly).
   function calculate(date, tzOffsetHours = 0, userLocation = null, useCurrentTime = false) {
     const utcDate = new Date(date.getTime() - tzOffsetHours * 3600000);
+    // For calendar days use local noon (12:00 in the user's timezone = 12 - tzOffsetHours in UTC).
+    // This ensures the MC is near the Sun at noon, which is the correct empirical check.
     const hour = useCurrentTime
       ? (utcDate.getHours() + utcDate.getMinutes() / 60)
-      : 12;
+      : 12 - tzOffsetHours;
     const jd = jdn(utcDate.getFullYear(), utcDate.getMonth() + 1, utcDate.getDate(), hour);
 
     const planetKeys = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Chiron','North Node','Black Moon Lilith'];
