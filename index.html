@@ -636,6 +636,37 @@ body{
 .learn-item-name{font-size:13px;font-weight:400;color:var(--cream);}
 .learn-item-sub{font-size:10px;color:var(--cream-dim);margin-top:2px;}
 .learn-arr{color:var(--gold);font-size:13px;}
+/* ── ONBOARDING ───────────────────────────────────────── */
+#onboarding{position:fixed;inset:0;z-index:500;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;}
+#onboarding.hidden{display:none;}
+.ob-star{font-size:36px;margin-bottom:20px;opacity:.85;}
+.ob-title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;font-style:italic;color:var(--gold);letter-spacing:.04em;margin-bottom:10px;}
+.ob-sub{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:28px;}
+.ob-divider{width:40px;height:1px;background:var(--border);margin:0 auto 28px;}
+.ob-body{font-size:13px;color:var(--cream-dim);line-height:1.8;max-width:340px;margin-bottom:32px;}
+.ob-body strong{color:var(--cream);font-weight:400;}
+.ob-search-wrap{position:relative;width:100%;max-width:340px;margin-bottom:14px;}
+.ob-search-input{width:100%;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--cream);font-family:'Jost',sans-serif;font-size:14px;font-weight:300;outline:none;text-align:left;}
+.ob-search-input:focus{border-color:var(--gold);}
+.ob-search-input::placeholder{color:var(--cream-faint);}
+.ob-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-top:6px;overflow:hidden;z-index:510;box-shadow:0 12px 32px rgba(0,0,0,.5);}
+.ob-option{padding:13px 16px;cursor:pointer;font-size:13px;color:var(--cream);border-bottom:1px solid var(--border-dim);text-align:left;}
+.ob-option:last-child{border-bottom:none;}
+.ob-option:active{background:rgba(201,168,76,.08);color:var(--gold);}
+.ob-option-sub{font-size:10px;color:var(--cream-dim);margin-top:2px;}
+.ob-btn{width:100%;max-width:340px;padding:15px;background:var(--gold-glow);border:1px solid var(--gold);border-radius:12px;color:var(--gold);font-family:'Jost',sans-serif;font-size:12px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;margin-bottom:18px;transition:background .2s;}
+.ob-btn:active{background:rgba(201,168,76,.2);}
+.ob-skip{font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.08em;padding:6px;border-bottom:1px solid var(--cream-faint);}
+.ob-skip:active{color:var(--cream-dim);}
+/* Skip confirmation popup */
+#ob-confirm{position:fixed;inset:0;z-index:520;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:28px;}
+#ob-confirm.hidden{display:none;}
+.ob-confirm-box{background:var(--surface2);border:1px solid var(--border);border-radius:18px;padding:28px 24px;max-width:320px;width:100%;text-align:center;}
+.ob-confirm-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:12px;line-height:1.3;}
+.ob-confirm-body{font-size:12px;color:var(--cream-dim);line-height:1.7;margin-bottom:24px;}
+.ob-confirm-btns{display:flex;flex-direction:column;gap:10px;}
+.ob-confirm-enter{padding:13px;background:var(--gold-glow);border:1px solid var(--gold);border-radius:10px;color:var(--gold);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;}
+.ob-confirm-skip{padding:10px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--cream-dim);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer;}
 .loc-search-wrap{position:relative;margin-bottom:14px;}
 .loc-search-input{width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--cream);font-family:'Jost',sans-serif;font-size:14px;font-weight:300;outline:none;}
 .loc-search-input:focus{border-color:var(--gold);}
@@ -654,6 +685,33 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <body>
 <div id="app">
 
+  <!-- ONBOARDING OVERLAY -->
+  <div id="onboarding" class="hidden">
+    <div class="ob-star">✦</div>
+    <div class="ob-title">Celestial</div>
+    <div class="ob-sub">Astrological Timing</div>
+    <div class="ob-divider"></div>
+    <p class="ob-body">To calculate <strong>house positions</strong> — the personal layer of your chart that shows which areas of your life each planet is currently activating — Celestial needs to know where you are looking at the sky from.<br><br>Enter any city to get started. You can change this anytime.</p>
+    <div class="ob-search-wrap">
+      <input id="ob-input" class="ob-search-input" type="text" placeholder="Search city or town…" autocomplete="off" oninput="onObInput(this.value)">
+      <div class="ob-dropdown" id="ob-dropdown" style="display:none;"></div>
+    </div>
+    <button class="ob-btn" id="ob-btn" onclick="obConfirmLocation()" disabled style="opacity:.45;cursor:default;">Set My Location</button>
+    <span class="ob-skip" onclick="obSkip()">Skip for now</span>
+  </div>
+
+  <!-- SKIP CONFIRMATION -->
+  <div id="ob-confirm" class="hidden">
+    <div class="ob-confirm-box">
+      <div class="ob-confirm-title">Continue without a location?</div>
+      <div class="ob-confirm-body">House positions won't be calculated, so planetary readings will be general rather than specific to where you are. You can always add your location later via the 📍 icon.</div>
+      <div class="ob-confirm-btns">
+        <button class="ob-confirm-enter" onclick="obBackToSearch()">Enter My Location</button>
+        <button class="ob-confirm-skip" onclick="obDismiss()">Continue Anyway</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SCREEN: TODAY -->
   <div id="screen-today" class="screen active">
     <div class="status-bar">
@@ -663,8 +721,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div class="app-name">Celestial</div>
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="app-date" id="header-date">Loading...</div>
-        <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Location">📍</div>
-        <div onclick="openTZSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Time Zone">⚙</div>
+        <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Change location">📍</div>
       </div>
     </div>
     <div class="today-banner">
@@ -823,40 +880,37 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   </div>
 </div>
 <script>
-// ═══════════════════════════════════════════════════════
-// TIMEZONE SUPPORT
-// ═══════════════════════════════════════════════════════
-const TIMEZONES = [
-  { label:'Eastern (ET)',     offset:-5,  dst:true,  id:'ET'  },
-  { label:'Central (CT)',     offset:-6,  dst:true,  id:'CT'  },
-  { label:'Mountain (MT)',    offset:-7,  dst:true,  id:'MT'  },
-  { label:'Pacific (PT)',     offset:-8,  dst:true,  id:'PT'  },
-  { label:'Alaska (AKT)',     offset:-9,  dst:true,  id:'AKT' },
-  { label:'Hawaii (HST)',     offset:-10, dst:false, id:'HST' },
-  { label:'UTC',              offset:0,   dst:false, id:'UTC' },
-  { label:'London (GMT/BST)', offset:0,   dst:true,  id:'GMT' },
-  { label:'Paris (CET)',      offset:1,   dst:true,  id:'CET' },
-  { label:'Dubai (GST)',      offset:4,   dst:false, id:'GST' },
-  { label:'Bangkok (ICT)',    offset:7,   dst:false, id:'ICT' },
-  { label:'Tokyo (JST)',      offset:9,   dst:false, id:'JST' },
-];
-function isDST(date){const jan=new Date(date.getFullYear(),0,1).getTimezoneOffset();const jul=new Date(date.getFullYear(),6,1).getTimezoneOffset();return date.getTimezoneOffset()<Math.max(jan,jul);}
-function getEffectiveOffset(tz,date){let off=tz.offset;if(tz.dst&&isDST(date))off+=1;return off;}
-let selectedTZ=TIMEZONES[0];
-try{const saved=localStorage.getItem('celestial_tz');if(saved)selectedTZ=TIMEZONES.find(t=>t.id===saved)||TIMEZONES[0];}catch(e){}
-function saveTZ(tz){selectedTZ=tz;try{localStorage.setItem('celestial_tz',tz.id);}catch(e){}refreshSkyData();}
+// ── TIMEZONE — derived from entered city, not the device ─────────────────
+// Uses the IANA timezone name stored with the location to compute accurate
+// UTC offsets for any date, including all DST transitions automatically.
+function getTzOffset(ianaName, date) {
+  if (!ianaName) return 0;
+  try {
+    const utc   = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const local = new Date(date.toLocaleString('en-US', { timeZone: ianaName }));
+    return (local - utc) / 3600000;
+  } catch(e) { return 0; }
+}
 
 // ── USER LOCATION ─────────────────────────────────────
+// Stored as { lat, lon, name, timezone } — timezone is the IANA name
+// (e.g. "America/Los_Angeles") fetched from timeapi.io when city is selected.
 let userLocation=null;
 try{const s=localStorage.getItem('celestial_loc');if(s)userLocation=JSON.parse(s);}catch(e){}
-function saveLocation(loc){userLocation=loc;try{localStorage.setItem('celestial_loc',JSON.stringify(loc));}catch(e){}refreshSkyData();}
+function saveLocation(loc){
+  userLocation=loc;
+  try{localStorage.setItem('celestial_loc',JSON.stringify(loc));}catch(e){}
+  try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
+  refreshSkyData();
+}
 
 // ── LIVE SKY CACHE ────────────────────────────────────
 let skyCache=null,skyCacheDate=null;
 function getSkyData(date,isLive=false){
-  const key=date.toDateString()+selectedTZ.id+(userLocation?userLocation.lat+','+userLocation.lon:'')+(isLive?'L':'');
+  const tz=getTzOffset(userLocation?.timezone,date);
+  const key=date.toDateString()+(userLocation?.timezone||'UTC')+(userLocation?userLocation.lat+','+userLocation.lon:'')+(isLive?'L':'');
   if(skyCache&&skyCacheDate===key)return skyCache;
-  skyCache=Ephemeris.calculate(date,getEffectiveOffset(selectedTZ,date),userLocation,isLive);
+  skyCache=Ephemeris.calculate(date,tz,userLocation,isLive);
   skyCacheDate=key;
   return skyCache;
 }
@@ -1366,6 +1420,96 @@ function updateTodayBanner(){
 }
 
 // ═══════════════════════════════════════════════════════
+// ONBOARDING OVERLAY
+// ═══════════════════════════════════════════════════════
+let _obDebounce=null;
+let _obPending=null; // { lat, lon, name } selected from dropdown but not yet confirmed
+
+function showOnboarding(){
+  const ob=document.getElementById('onboarding');
+  if(ob)ob.classList.remove('hidden');
+}
+function hideOnboarding(){
+  const ob=document.getElementById('onboarding');
+  const oc=document.getElementById('ob-confirm');
+  if(ob)ob.classList.add('hidden');
+  if(oc)oc.classList.add('hidden');
+}
+
+function onObInput(val){
+  clearTimeout(_obDebounce);
+  _obPending=null;
+  const btn=document.getElementById('ob-btn');
+  if(btn){btn.disabled=true;btn.style.opacity='.45';btn.style.cursor='default';}
+  const dd=document.getElementById('ob-dropdown');
+  if(!dd)return;
+  if(val.length<2){dd.style.display='none';return;}
+  _obDebounce=setTimeout(()=>fetchObSuggestions(val),400);
+}
+
+function fetchObSuggestions(q){
+  const dd=document.getElementById('ob-dropdown');
+  if(!dd)return;
+  dd.innerHTML=`<div class="ob-option" style="color:var(--cream-dim);">Searching…</div>`;
+  dd.style.display='block';
+  fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&featuretype=city,town,village`,{headers:{'Accept-Language':'en'}})
+    .then(r=>r.json())
+    .then(results=>{
+      if(!results.length){dd.innerHTML=`<div class="ob-option" style="color:var(--cream-dim);">No results found</div>`;return;}
+      dd.innerHTML=results.map(r=>{
+        const parts=r.display_name.split(',');
+        const name=parts[0].trim();
+        const sub=parts.slice(1,3).join(',').trim();
+        return`<div class="ob-option" onclick="obSelectResult(${r.lat},${r.lon},'${name.replace(/'/g,'\\u0027')}')"><div>${name}</div><div class="ob-option-sub">${sub}</div></div>`;
+      }).join('');
+    })
+    .catch(()=>{dd.innerHTML=`<div class="ob-option" style="color:var(--cream-dim);">Could not reach search service</div>`;});
+}
+
+function obSelectResult(lat,lon,name){
+  _obPending={lat:parseFloat(lat),lon:parseFloat(lon),name};
+  const inp=document.getElementById('ob-input');
+  if(inp)inp.value=name;
+  const dd=document.getElementById('ob-dropdown');
+  if(dd)dd.style.display='none';
+  const btn=document.getElementById('ob-btn');
+  if(btn){btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';}
+}
+
+function obConfirmLocation(){
+  if(!_obPending)return;
+  const {lat,lon,name}=_obPending;
+  fetch(`https://timeapi.io/api/TimeZone/coordinate?latitude=${lat}&longitude=${lon}`)
+    .then(r=>r.json())
+    .then(d=>{
+      saveLocation({lat,lon,name,timezone:d.timeZone||null});
+      hideOnboarding();
+    })
+    .catch(()=>{
+      saveLocation({lat,lon,name,timezone:null});
+      hideOnboarding();
+    });
+}
+
+function obSkip(){
+  const oc=document.getElementById('ob-confirm');
+  if(oc)oc.classList.remove('hidden');
+}
+function obBackToSearch(){
+  const oc=document.getElementById('ob-confirm');
+  if(oc)oc.classList.add('hidden');
+}
+function obDismiss(){
+  try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
+  hideOnboarding();
+}
+
+// Show onboarding on first open
+(function(){
+  try{if(!localStorage.getItem('celestial_onboarded'))showOnboarding();}catch(e){}
+})();
+
+// ═══════════════════════════════════════════════════════
 // LOCATION SHEET — Nominatim city autocomplete
 // ═══════════════════════════════════════════════════════
 let _locDebounce=null;
@@ -1415,18 +1559,15 @@ function fetchLocSuggestions(q){
     .catch(()=>{dd.innerHTML=`<div class="loc-option" style="color:var(--cream-dim);">Could not reach search service</div>`;});
 }
 function selectLocation(lat,lon,name){
-  saveLocation({lat:parseFloat(lat),lon:parseFloat(lon),name});
+  const flatLat=parseFloat(lat),flatLon=parseFloat(lon);
+  // Fetch IANA timezone for the chosen coordinates — gives accurate DST for any city
+  fetch(`https://timeapi.io/api/TimeZone/coordinate?latitude=${flatLat}&longitude=${flatLon}`)
+    .then(r=>r.json())
+    .then(d=>{saveLocation({lat:flatLat,lon:flatLon,name,timezone:d.timeZone||null});})
+    .catch(()=>{saveLocation({lat:flatLat,lon:flatLon,name,timezone:null});});
   closeSheet();
 }
 
-// ═══════════════════════════════════════════════════════
-// TZ SHEET
-// ═══════════════════════════════════════════════════════
-function openTZSheet(){
-  let html=`<div style="margin-bottom:16px;"><div class="sheet-planet-title" style="font-size:20px;">Time Zone</div><div class="sheet-body" style="margin-top:6px;">Select your location. Calculations update to reflect local time.</div></div>`;
-  TIMEZONES.forEach(tz=>{const isActive=tz.id===selectedTZ.id;html+=`<div onclick="saveTZ(TIMEZONES.find(t=>t.id==='${tz.id}'));closeSheet();" style="padding:13px 14px;margin-bottom:6px;border-radius:10px;border:1px solid ${isActive?'var(--gold)':'var(--border)'};background:${isActive?'rgba(201,168,76,0.08)':'var(--surface)'};display:flex;justify-content:space-between;align-items:center;cursor:pointer;"><span style="font-size:13px;color:${isActive?'var(--gold)':'var(--cream)'};">${tz.label}</span>${isActive?'<span style="color:var(--gold);font-size:16px;">✓</span>':''}</div>`;});
-  openSheet(html);
-}
 
 // ═══════════════════════════════════════════════════════
 // SWIPE TO CLOSE SHEET
