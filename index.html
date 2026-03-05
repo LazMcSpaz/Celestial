@@ -667,6 +667,28 @@ body{
 .ob-confirm-btns{display:flex;flex-direction:column;gap:10px;}
 .ob-confirm-enter{padding:13px;background:var(--gold-glow);border:1px solid var(--gold);border-radius:10px;color:var(--gold);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;}
 .ob-confirm-skip{padding:10px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--cream-dim);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer;}
+/* ── TOUR PROMPT ─────────────────────────────── */
+#tour-prompt{position:fixed;inset:0;z-index:530;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:24px;}
+#tour-prompt.hidden{display:none;}
+.tour-prompt-box{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:30px 24px;max-width:320px;width:100%;text-align:center;}
+.tour-prompt-star{font-size:26px;color:var(--gold);margin-bottom:14px;}
+.tour-prompt-title{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;font-style:italic;color:var(--gold);letter-spacing:.04em;margin-bottom:10px;}
+.tour-prompt-body{font-size:13px;color:var(--cream-dim);line-height:1.7;margin-bottom:24px;}
+.tour-prompt-yes{display:block;width:100%;background:var(--gold);color:#0a0a0a;border:none;border-radius:10px;padding:14px;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;letter-spacing:.06em;cursor:pointer;margin-bottom:14px;}
+.tour-prompt-yes:active{opacity:.85;}
+.tour-prompt-no{font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.08em;}
+/* ── TOUR OVERLAY ────────────────────────────── */
+#tour-overlay{position:fixed;inset:0;z-index:300;pointer-events:none;}
+#tour-overlay.hidden{display:none;}
+#tour-spotlight{position:absolute;border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.72);transition:all .3s ease;pointer-events:none;}
+#tour-tooltip{position:absolute;background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:18px 18px 14px;width:calc(100% - 48px);max-width:310px;pointer-events:all;box-shadow:0 12px 40px rgba(0,0,0,.7);transition:top .3s ease,left .3s ease;}
+.tour-step-count{font-size:10px;color:var(--cream-faint);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;}
+.tour-title{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:400;color:var(--gold);margin-bottom:8px;line-height:1.2;}
+.tour-body{font-size:13px;color:var(--cream-dim);line-height:1.65;margin-bottom:14px;}
+.tour-btns{display:flex;align-items:center;justify-content:space-between;}
+.tour-skip{font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.07em;}
+.tour-next-btn{background:var(--gold);color:#0a0a0a;border:none;border-radius:8px;padding:9px 20px;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;cursor:pointer;}
+.tour-next-btn:active{opacity:.85;}
 .loc-search-wrap{position:relative;margin-bottom:14px;}
 .loc-search-input{width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--cream);font-family:'Jost',sans-serif;font-size:14px;font-weight:300;outline:none;}
 .loc-search-input:focus{border-color:var(--gold);}
@@ -708,6 +730,31 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div class="ob-confirm-btns">
         <button class="ob-confirm-enter" onclick="obBackToSearch()">Enter My Location</button>
         <button class="ob-confirm-skip" onclick="obDismiss()">Continue Anyway</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOUR PROMPT -->
+  <div id="tour-prompt" class="hidden">
+    <div class="tour-prompt-box">
+      <div class="tour-prompt-star">✦</div>
+      <div class="tour-prompt-title">Welcome to Celestial</div>
+      <div class="tour-prompt-body">This app has a lot to explore — timing calendars, planetary charts, guided decision flows, and more. Would you like a quick tour?</div>
+      <button class="tour-prompt-yes" onclick="startTour()">Take the Tour</button>
+      <span class="tour-prompt-no" onclick="dismissTourPrompt()">Explore on my own</span>
+    </div>
+  </div>
+
+  <!-- TOUR OVERLAY -->
+  <div id="tour-overlay" class="hidden">
+    <div id="tour-spotlight"></div>
+    <div id="tour-tooltip">
+      <div id="tour-step-count" class="tour-step-count"></div>
+      <div id="tour-title" class="tour-title"></div>
+      <div id="tour-body" class="tour-body"></div>
+      <div class="tour-btns">
+        <span class="tour-skip" onclick="endTour()">Skip tour</span>
+        <button id="tour-next-btn" class="tour-next-btn" onclick="tourNext()">Next →</button>
       </div>
     </div>
   </div>
@@ -1420,6 +1467,137 @@ function updateTodayBanner(){
 }
 
 // ═══════════════════════════════════════════════════════
+// APP TOUR
+// ═══════════════════════════════════════════════════════
+const TOUR_STEPS = [
+  {
+    screen: 'today',
+    target: null,
+    title: 'Welcome to Celestial',
+    body: 'This app helps you find the best cosmic timing for any decision — from finances to creative work. Here\'s a quick tour of the main features.',
+  },
+  {
+    screen: 'today',
+    target: '.today-banner',
+    title: 'Today\'s Influence',
+    body: 'This headline captures the sky\'s dominant energy right now. Tap any pill — like the Moon sign or Mercury\'s status — for a full interpretation.',
+    position: 'below',
+  },
+  {
+    screen: 'today',
+    target: '#cat-tabs',
+    title: 'Life Categories',
+    body: 'Switch between Finance & Career, Communication, Mind & Body, and Spirit. Each recalculates the calendar and scoring based on the planets most relevant to that area of life.',
+    position: 'below',
+  },
+  {
+    screen: 'today',
+    target: '.calendar-wrap',
+    title: 'Timing Calendar',
+    body: 'Green days are favorable, gold means caution, red is challenging. Tap any date for a full breakdown — aspects, house positions, and what\'s driving the score.',
+    position: 'above',
+  },
+  {
+    screen: 'guide',
+    target: null,
+    title: 'The Guide',
+    body: 'Need timing for a specific decision? The Guide walks you through three steps — category, action type, and intent — then surfaces the best windows in the next 30 days.',
+  },
+  {
+    screen: 'sky',
+    target: '.zodiac-wheel-wrap',
+    title: 'The Sky',
+    body: 'A live zodiac wheel showing where every planet sits right now. Tap any planet in the list below for its sign, degree, and a real-time interpretation.',
+    position: 'below',
+  },
+  {
+    screen: 'learn',
+    target: null,
+    title: 'The Learn Library',
+    body: 'Your astrological reference — every planet, zodiac sign, house, and aspect explained in depth. A great place to build your fluency over time.',
+  },
+];
+
+let _tourStep = 0;
+
+function showTourPrompt() {
+  const el = document.getElementById('tour-prompt');
+  if (el) el.classList.remove('hidden');
+}
+function dismissTourPrompt() {
+  const el = document.getElementById('tour-prompt');
+  if (el) el.classList.add('hidden');
+  try { localStorage.setItem('celestial_tour_seen', '1'); } catch(e) {}
+}
+function maybeShowTourPrompt() {
+  try { if (!localStorage.getItem('celestial_tour_seen')) showTourPrompt(); } catch(e) {}
+}
+
+function startTour() {
+  dismissTourPrompt();
+  _tourStep = 0;
+  const ov = document.getElementById('tour-overlay');
+  if (ov) ov.classList.remove('hidden');
+  renderTourStep();
+}
+function endTour() {
+  const ov = document.getElementById('tour-overlay');
+  if (ov) ov.classList.add('hidden');
+  try { localStorage.setItem('celestial_tour_seen', '1'); } catch(e) {}
+}
+function tourNext() {
+  _tourStep++;
+  if (_tourStep >= TOUR_STEPS.length) { endTour(); return; }
+  renderTourStep();
+}
+
+function renderTourStep() {
+  const step = TOUR_STEPS[_tourStep];
+  // Navigate to the right screen
+  if (activeScreen !== step.screen) navTo(step.screen);
+  // Allow screen transition to settle before measuring DOM positions
+  setTimeout(() => _positionTourStep(step), step.target ? 80 : 0);
+}
+
+function _positionTourStep(step) {
+  // Update text content
+  document.getElementById('tour-step-count').textContent = 'Step ' + (_tourStep + 1) + ' of ' + TOUR_STEPS.length;
+  document.getElementById('tour-title').textContent = step.title;
+  document.getElementById('tour-body').textContent = step.body;
+  const btn = document.getElementById('tour-next-btn');
+  if (btn) btn.textContent = _tourStep === TOUR_STEPS.length - 1 ? 'Done ✓' : 'Next →';
+
+  const sp = document.getElementById('tour-spotlight');
+  const tt = document.getElementById('tour-tooltip');
+  const pad = 6;
+  const ttW = Math.min(310, window.innerWidth - 48);
+  tt.style.width = ttW + 'px';
+
+  if (step.target) {
+    const el = document.querySelector(step.target);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      sp.style.cssText = `left:${rect.left - pad}px;top:${rect.top - pad}px;width:${rect.width + pad * 2}px;height:${rect.height + pad * 2}px;border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.72);transition:all .3s ease;pointer-events:none;`;
+      const ttLeft = Math.max(24, Math.min(window.innerWidth - ttW - 24, rect.left + rect.width / 2 - ttW / 2));
+      if (step.position === 'above') {
+        tt.style.left = ttLeft + 'px';
+        tt.style.top = (rect.top - pad - 14) + 'px';
+        tt.style.transform = 'translateY(-100%)';
+      } else {
+        tt.style.left = ttLeft + 'px';
+        tt.style.top = (rect.bottom + pad + 14) + 'px';
+        tt.style.transform = '';
+      }
+    }
+  } else {
+    sp.style.cssText = 'display:none;';
+    tt.style.left = ((window.innerWidth - ttW) / 2) + 'px';
+    tt.style.top = '50%';
+    tt.style.transform = 'translateY(-50%)';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // ONBOARDING OVERLAY
 // ═══════════════════════════════════════════════════════
 let _obDebounce=null;
@@ -1484,10 +1662,12 @@ function obConfirmLocation(){
     .then(d=>{
       saveLocation({lat,lon,name,timezone:d.timeZone||null});
       hideOnboarding();
+      maybeShowTourPrompt();
     })
     .catch(()=>{
       saveLocation({lat,lon,name,timezone:null});
       hideOnboarding();
+      maybeShowTourPrompt();
     });
 }
 
@@ -1502,6 +1682,7 @@ function obBackToSearch(){
 function obDismiss(){
   try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
   hideOnboarding();
+  maybeShowTourPrompt();
 }
 
 // Show onboarding on first open
