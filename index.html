@@ -237,9 +237,13 @@ const Ephemeris = (() => {
   }
 
   // ── MAIN CALCULATE ────────────────────────────────────
-  function calculate(date, tzOffsetHours = 0) {
+  // userLocation: { lat, lon } or null. useCurrentTime: true for live readings (houses shift hourly).
+  function calculate(date, tzOffsetHours = 0, userLocation = null, useCurrentTime = false) {
     const utcDate = new Date(date.getTime() - tzOffsetHours * 3600000);
-    const jd = jdn(utcDate.getFullYear(), utcDate.getMonth() + 1, utcDate.getDate(), 12);
+    const hour = useCurrentTime
+      ? (utcDate.getHours() + utcDate.getMinutes() / 60)
+      : 12;
+    const jd = jdn(utcDate.getFullYear(), utcDate.getMonth() + 1, utcDate.getDate(), hour);
 
     const planetKeys = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Chiron','North Node','Black Moon Lilith'];
     const positions = {};
@@ -263,6 +267,13 @@ const Ephemeris = (() => {
       if (asp) aspects.push({ p1: a, p2: b, ...asp });
     });
 
+    let houses = null, ascDegree = null, mcDegree = null;
+    if (userLocation && userLocation.lat != null && userLocation.lon != null) {
+      const asc = calcAscendant(jd, userLocation.lat, userLocation.lon);
+      ascDegree = asc.ascDegree;
+      mcDegree  = asc.mcDegree;
+      houses    = assignHouses(positions, ascDegree);
+    }
     return {
       positions,
       aspects,
@@ -270,12 +281,16 @@ const Ephemeris = (() => {
       phaseName:  lunarPhaseName(jd),
       phaseEmoji: lunarPhaseEmoji(jd),
       jd,
+      houses,
+      ascDegree,
+      mcDegree,
     };
   }
 
   // ── DAY SCORE ─────────────────────────────────────────
+  // Returns 0=Neutral 1=Slightly Favorable 2=Favorable 3=Optimal 4=Caution 5=Challenging
   function scoreDay(skyData, category) {
-    const { positions, aspects, phase } = skyData;
+    const { positions, aspects, phase, houses } = skyData;
     let score = 0;
     const catPlanets = {
       0: ['Venus','Jupiter','Saturn','Mercury'],
@@ -285,55 +300,133 @@ const Ephemeris = (() => {
     };
     const keyPlanets = catPlanets[category] || catPlanets[0];
 
+    // LAYER 1 — Essential dignity (sign placement) + retrograde penalty
     keyPlanets.forEach(p => {
-      if (positions[p] && positions[p].retrograde) {
-        if (p === 'Mercury' && (category === 0 || category === 1)) score -= 2;
-        else score -= 1;
+      if (!positions[p]) return;
+      score += essentialDignity(p, positions[p].sign);
+      if (positions[p].retrograde) {
+        score -= (p === 'Mercury' && (category === 0 || category === 1)) ? 1.5 : 0.75;
       }
     });
 
+    // LAYER 2 — Accidental dignity (house) + category–house resonance
+    if (houses) {
+      keyPlanets.forEach(p => {
+        if (!houses[p]) return;
+        score += accidentalDignity(houses[p]) * 0.7;
+        score += categoryHouseBonus(category, houses[p]);
+      });
+    }
+
+    // LAYER 3 — Aspects between key planets
     aspects.forEach(asp => {
       const rel1 = keyPlanets.includes(asp.p1);
       const rel2 = keyPlanets.includes(asp.p2);
       if (!rel1 && !rel2) return;
-      const weight   = (rel1 && rel2) ? 2 : 1;
-      const orbBonus = asp.diff < 3 ? 1 : 0;
-      if (asp.harmony === 'positive') score += (1 + orbBonus) * weight;
-      if (asp.harmony === 'negative') score -= (1 + orbBonus) * weight;
+      const weight   = (rel1 && rel2) ? 1.5 : 1;
+      const orbBonus = asp.diff < 2 ? 0.5 : asp.diff < 4 ? 0.25 : 0;
+      if (asp.harmony === 'positive') score += (0.8 + orbBonus) * weight;
+      if (asp.harmony === 'negative') score -= (0.8 + orbBonus) * weight;
       if (asp.harmony === 'neutral') {
         const powerPairs = [['Jupiter','Venus'],['Jupiter','Sun'],['Jupiter','Moon']];
-        if (powerPairs.some(([a,b]) => (asp.p1===a&&asp.p2===b)||(asp.p1===b&&asp.p2===a))) score += 0.5;
+        if (powerPairs.some(([a,b]) => (asp.p1===a&&asp.p2===b)||(asp.p1===b&&asp.p2===a))) score += 0.3;
       }
     });
 
+    // LAYER 4 — Lunar phase
     if (category === 0 || category === 1) {
       if (phase < 0.05 || phase > 0.95) score -= 0.5;
       if (phase > 0.45 && phase < 0.55) score += 0.5;
-      if (phase > 0.7) score -= 0.5;
+      if (phase > 0.7) score -= 0.3;
     }
     if (category === 3) {
-      if (phase < 0.05 || phase > 0.95) score += 1;
-      if (phase > 0.45 && phase < 0.55) score += 1;
+      if (phase < 0.05 || phase > 0.95) score += 0.7;
+      if (phase > 0.45 && phase < 0.55) score += 0.7;
     }
 
-    // Balanced dignity/detriment modifiers — bidirectional so they average to zero
-    // over the full zodiac cycle and don't structurally inflate scores
-    const venSign = positions['Venus'] ? positions['Venus'].sign : '';
-    const jupSign = positions['Jupiter'] ? positions['Jupiter'].sign : '';
-    if      (venSign === 'Taurus' || venSign === 'Libra')    score += 0.5;  // domicile
-    else if (venSign === 'Pisces')                            score += 0.25; // exaltation
-    else if (venSign === 'Aries'  || venSign === 'Scorpio')  score -= 0.5;  // detriment
-    else if (venSign === 'Virgo')                             score -= 0.25; // fall
-    if      (jupSign === 'Sagittarius' || jupSign === 'Pisces') score += 0.5;  // domicile
-    else if (jupSign === 'Cancer')                              score += 0.25; // exaltation
-    else if (jupSign === 'Gemini'  || jupSign === 'Virgo')      score -= 0.5;  // detriment
-    else if (jupSign === 'Capricorn')                           score -= 0.25; // fall
+    if (score >= 3.5)  return 3; // Optimal
+    if (score >= 1.5)  return 2; // Favorable
+    if (score >= 0.4)  return 1; // Slightly Favorable
+    if (score <= -3.0) return 5; // Challenging
+    if (score <= -1.5) return 4; // Caution
+    return 0; // Neutral
+  }
 
-    if (score >= 4) return 3;
-    if (score >= 2) return 2;
-    if (score >= 1) return 1;
-    if (score <= -3) return 5;
-    if (score <= -1) return 4;
+  // ── ASCENDANT & HOUSES ────────────────────────────────
+  // Computes ecliptic longitude of the Ascendant and MC
+  // jd: Julian Day for the exact moment; latDeg/lonDeg: geographic coords (east=positive)
+  function calcAscendant(jd, latDeg, lonDeg) {
+    const T   = julCent(jd);
+    const eps = 23.439291111 - 0.013004167 * T; // obliquity, degrees
+    // Greenwich Mean Sidereal Time → Local Sidereal Time (degrees)
+    const GMST  = mod360(280.46061837 + 360.98564736629 * (jd - 2451545.0));
+    const RAMC  = mod360(GMST + lonDeg); // RA of Midheaven, degrees
+    // MC: ecliptic longitude of Midheaven
+    let MC = Math.atan2(sind(RAMC), cosd(RAMC) * cosd(eps)) * RAD;
+    MC = mod360(MC);
+    // Ascendant ecliptic longitude
+    const lat = latDeg * DEG;
+    let ASC = Math.atan2(
+      -cosd(RAMC),
+      sind(RAMC) * cosd(eps) + Math.tan(lat) * sind(eps)
+    ) * RAD;
+    ASC = mod360(ASC);
+    // Ensure ASC is in the eastern hemisphere (mod-diff from MC between 0–180)
+    if (mod360(ASC - MC) > 180) ASC = mod360(ASC + 180);
+    return { ascDegree: ASC, mcDegree: MC };
+  }
+
+  // Whole Sign house assignment: house 1 = ASC's sign, incrementing eastward
+  function assignHouses(positions, ascDegree) {
+    const ascSignIdx = Math.floor(ascDegree / 30) % 12;
+    const houses = {};
+    Object.entries(positions).forEach(([name, pos]) => {
+      const pSignIdx = Math.floor(pos.lon / 30) % 12;
+      houses[name] = ((pSignIdx - ascSignIdx + 12) % 12) + 1;
+    });
+    return houses;
+  }
+
+  // ── ESSENTIAL DIGNITY ─────────────────────────────────
+  // Classical and modern rulerships. Domicile > exaltation; detriment > fall.
+  const DIGNITIES = {
+    Sun:     { dom:['Leo'],                  exalt:['Aries'],       det:['Aquarius'],             fall:['Libra']       },
+    Moon:    { dom:['Cancer'],               exalt:['Taurus'],      det:['Capricorn'],            fall:['Scorpio']     },
+    Mercury: { dom:['Gemini','Virgo'],       exalt:['Aquarius'],    det:['Sagittarius','Pisces'], fall:['Leo']         },
+    Venus:   { dom:['Taurus','Libra'],       exalt:['Pisces'],      det:['Aries','Scorpio'],      fall:['Virgo']       },
+    Mars:    { dom:['Aries','Scorpio'],      exalt:['Capricorn'],   det:['Taurus','Libra'],       fall:['Cancer']      },
+    Jupiter: { dom:['Sagittarius','Pisces'], exalt:['Cancer'],      det:['Gemini','Virgo'],       fall:['Capricorn']   },
+    Saturn:  { dom:['Capricorn','Aquarius'], exalt:['Libra'],       det:['Cancer','Leo'],         fall:['Aries']       },
+    Uranus:  { dom:['Aquarius'],             exalt:['Scorpio'],     det:['Leo'],                  fall:['Taurus']      },
+    Neptune: { dom:['Pisces'],               exalt:['Cancer'],      det:['Virgo'],                fall:['Capricorn']   },
+    Chiron:  { dom:['Virgo'],                exalt:['Aries'],       det:['Pisces'],               fall:['Libra']       },
+  };
+  function essentialDignity(planet, sign) {
+    const d = DIGNITIES[planet]; if (!d) return 0;
+    if (d.dom.includes(sign))                              return  0.5;
+    if (d.exalt.includes(sign) && !d.dom.includes(sign))  return  0.3;
+    if (d.det.includes(sign))                              return -0.5;
+    if (d.fall.includes(sign) && !d.det.includes(sign))   return -0.3;
+    return 0;
+  }
+
+  // ── ACCIDENTAL DIGNITY ────────────────────────────────
+  // Angular houses = planets act at full strength; cadent = weakened.
+  const HOUSE_STRENGTH = { 1:0.5, 4:0.45, 7:0.4, 10:0.5, 2:0.15, 5:0.15, 11:0.15, 3:-0.1, 6:-0.2, 8:-0.15, 9:0.05, 12:-0.4 };
+  function accidentalDignity(h) { return HOUSE_STRENGTH[h] || 0; }
+
+  // ── CATEGORY–HOUSE RESONANCE ──────────────────────────
+  // When key planets fall in thematically matched houses, the day is more relevant.
+  const CAT_HOUSE_RES = {
+    0: { good:[2,8,10,11], bad:[12,6]    }, // Finance: money, investments, career, gains
+    1: { good:[3,1,7,9],   bad:[12,8]    }, // Comms: communication, self, partnerships, publishing
+    2: { good:[1,6,4,5],   bad:[8,12]    }, // Mind/Body: body, health, home, joy
+    3: { good:[9,12,4,8],  bad:[6,1]     }, // Spirit: philosophy, retreat, roots, transformation
+  };
+  function categoryHouseBonus(category, h) {
+    const r = CAT_HOUSE_RES[category]; if (!r) return 0;
+    if (r.good.includes(h)) return  0.3;
+    if (r.bad.includes(h))  return -0.2;
     return 0;
   }
 
@@ -358,7 +451,7 @@ const Ephemeris = (() => {
     return `${phaseName} · ${positions['Moon'].sign} Moon — steady, unremarkable sky`;
   }
 
-  return { calculate, scoreDay, generateHeadline, lunarPhaseName, lunarPhaseEmoji, toZodiac, jdn, T: julCent };
+  return { calculate, scoreDay, generateHeadline, lunarPhaseName, lunarPhaseEmoji, toZodiac, jdn, T: julCent, calcAscendant, assignHouses, essentialDignity, DIGNITIES };
 })();
 </script>
 <style>
@@ -377,7 +470,7 @@ body{
   --black:#0a0a0a;--surface:#111111;--surface2:#181818;--surface3:#202020;
   --gold:#c9a84c;--gold-dim:#8a6f30;--gold-glow:rgba(201,168,76,0.12);
   --cream:#f0e8d8;--cream-dim:#a89880;--cream-faint:#5a4f42;
-  --green-1:rgba(74,124,89,0.22);--green-2:rgba(74,124,89,0.45);--green-3:rgba(74,124,89,0.72);
+  --green-0:rgba(74,124,89,0.09);--green-1:rgba(74,124,89,0.22);--green-2:rgba(74,124,89,0.45);--green-3:rgba(74,124,89,0.72);
   --green-text:#7dcf9e;--amber:rgba(201,168,76,0.22);--amber-text:#c9a84c;
   --red:rgba(139,58,58,0.32);--red-text:#d47070;--neutral:#2a2a2a;
   --border:rgba(201,168,76,0.18);--border-dim:rgba(255,255,255,0.06);
@@ -417,6 +510,7 @@ body{
 .cal-cell:active{transform:scale(.92);}
 .cal-cell.empty{pointer-events:none;}
 .cal-cell.neutral{color:var(--cream-dim);}
+.cal-cell.good-0{background:var(--green-0);color:#6db888;}
 .cal-cell.good-1{background:var(--green-1);color:#8ed4a8;}
 .cal-cell.good-2{background:var(--green-2);color:#a8e8c0;}
 .cal-cell.good-3{background:var(--green-3);color:#c4f5d4;font-weight:500;}
@@ -465,7 +559,8 @@ body{
 .sheet-date-meta{font-size:11px;color:var(--cream-dim);margin-top:4px;}
 .quality-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border-radius:12px;margin:10px 0;}
 .qb-optimal{background:rgba(74,124,89,.25);color:#7dcf9e;border:1px solid rgba(74,124,89,.4);}
-.qb-favorable{background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3);}
+.qb-slight{background:rgba(74,124,89,.1);color:#6db888;border:1px solid rgba(74,124,89,.25);}
+.qb-favorable{background:rgba(74,124,89,.18);color:#8ed4a8;border:1px solid rgba(74,124,89,.35);}
 .qb-caution{background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.3);}
 .qb-challenging{background:rgba(139,58,58,.2);color:#d47070;border:1px solid rgba(139,58,58,.4);}
 .qb-neutral{background:var(--surface);color:var(--cream-dim);border:1px solid var(--border);}
@@ -539,6 +634,16 @@ body{
 .learn-item-name{font-size:13px;font-weight:400;color:var(--cream);}
 .learn-item-sub{font-size:10px;color:var(--cream-dim);margin-top:2px;}
 .learn-arr{color:var(--gold);font-size:13px;}
+.loc-search-wrap{position:relative;margin-bottom:14px;}
+.loc-search-input{width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--cream);font-family:'Jost',sans-serif;font-size:14px;font-weight:300;outline:none;}
+.loc-search-input:focus{border-color:var(--gold);}
+.loc-search-input::placeholder{color:var(--cream-faint);}
+.loc-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.loc-option{padding:11px 14px;cursor:pointer;font-size:13px;color:var(--cream);border-bottom:1px solid var(--border-dim);}
+.loc-option:last-child{border-bottom:none;}
+.loc-option:active{background:rgba(201,168,76,.08);color:var(--gold);}
+.loc-option-sub{font-size:10px;color:var(--cream-dim);margin-top:2px;}
+.loc-active-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:6px 12px;border-radius:20px;border:1px solid rgba(74,124,89,.4);background:rgba(74,124,89,.12);color:#7dcf9e;margin-bottom:14px;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .screen.active .scroll-area{animation:fadeIn .3s ease;}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4;}
@@ -556,6 +661,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div class="app-name">Celestial</div>
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="app-date" id="header-date">Loading...</div>
+        <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Location">📍</div>
         <div onclick="openTZSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Time Zone">⚙</div>
       </div>
     </div>
@@ -584,7 +690,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         </div>
         <div class="cal-grid" id="cal-grid"></div>
         <div class="cal-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(74,124,89,.7)"></div>Optimal</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(74,124,89,.72)"></div>Optimal</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(74,124,89,.45)"></div>Favorable</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(74,124,89,.22)"></div>Slight</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(201,168,76,.5)"></div>Caution</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(139,58,58,.5)"></div>Challenging</div>
           <div class="legend-item"><div class="legend-dot" style="background:#2a2a2a"></div>Neutral</div>
@@ -683,6 +791,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <div id="learn-planets"></div>
         <div class="learn-section-title">The Zodiac Signs</div>
         <div id="learn-signs"></div>
+        <div class="learn-section-title">The Houses</div>
+        <div id="learn-houses"></div>
         <div class="learn-section-title">Aspects Explained</div>
         <div id="learn-aspects"></div>
         <div class="learn-section-title">Retrograde Explained</div>
@@ -734,12 +844,17 @@ let selectedTZ=TIMEZONES[0];
 try{const saved=localStorage.getItem('celestial_tz');if(saved)selectedTZ=TIMEZONES.find(t=>t.id===saved)||TIMEZONES[0];}catch(e){}
 function saveTZ(tz){selectedTZ=tz;try{localStorage.setItem('celestial_tz',tz.id);}catch(e){}refreshSkyData();}
 
+// ── USER LOCATION ─────────────────────────────────────
+let userLocation=null;
+try{const s=localStorage.getItem('celestial_loc');if(s)userLocation=JSON.parse(s);}catch(e){}
+function saveLocation(loc){userLocation=loc;try{localStorage.setItem('celestial_loc',JSON.stringify(loc));}catch(e){}refreshSkyData();}
+
 // ── LIVE SKY CACHE ────────────────────────────────────
 let skyCache=null,skyCacheDate=null;
-function getSkyData(date){
-  const key=date.toDateString()+selectedTZ.id;
+function getSkyData(date,isLive=false){
+  const key=date.toDateString()+selectedTZ.id+(userLocation?userLocation.lat+','+userLocation.lon:'')+(isLive?'L':'');
   if(skyCache&&skyCacheDate===key)return skyCache;
-  skyCache=Ephemeris.calculate(date,getEffectiveOffset(selectedTZ,date));
+  skyCache=Ephemeris.calculate(date,getEffectiveOffset(selectedTZ,date),userLocation,isLive);
   skyCacheDate=key;
   return skyCache;
 }
@@ -769,6 +884,25 @@ const CAT_ICONS=['⭕','⚔️','🏆','🪄'];
 const ZODIAC_SIGNS=['♈ Aries','♉ Taurus','♊ Gemini','♋ Cancer','♌ Leo','♍ Virgo','♎ Libra','♏ Scorpio','♐ Sagittarius','♑ Capricorn','♒ Aquarius','♓ Pisces'];
 const ZODIAC_DESCS=['Bold, pioneering, self-asserting. Rules new beginnings and initiative.','Grounded, resourceful, patient. Rules wealth, beauty, and physical stability.','Curious, communicative, adaptable. Rules information exchange and short travel.','Nurturing, intuitive, protective. Rules home, family, and emotional security.','Expressive, generous, dramatic. Rules creativity, performance, and identity.','Analytical, practical, service-oriented. Rules health, work, and daily routines.','Balanced, diplomatic, harmony-seeking. Rules relationships and fairness.','Intense, transformative, private. Rules power, death/rebirth, and the occult.','Expansive, philosophical, adventurous. Rules higher learning and long journeys.','Ambitious, disciplined, strategic. Rules career, authority, and legacy.','Innovative, humanitarian, unconventional. Rules technology and collective progress.','Empathic, spiritual, dissolving. Rules the unconscious, dreams, and transcendence.'];
 const ASPECTS=[{name:'Conjunction (0°)',symbol:'☌',desc:'Two planets occupying the same degree of the zodiac. Their energies merge and intensify each other.'},{name:'Sextile (60°)',symbol:'⚹',desc:'A harmonious aspect representing opportunity and ease. The two planets\' energies cooperate.'},{name:'Trine (120°)',symbol:'△',desc:'The most flowing of all aspects. Natural talent, ease, and luck. Energy moves effortlessly between the two planets.'},{name:'Square (90°)',symbol:'□',desc:'Tension and friction between two planets\' energies. Challenges and obstacles that force growth.'},{name:'Opposition (180°)',symbol:'☍',desc:'Two planets directly across the zodiac from each other. Creates polarity and the need to balance opposing forces.'}];
+
+// ─── HOUSE DATA ───────────────────────────────────────────────────────────
+const HOUSE_DATA=[
+  {num:1, name:'1st House', theme:'Self & Identity',       type:'Angular',   desc:'The Ascendant house — the self, physical body, first impressions, and personal initiative. Planets here act with great force and visibility.',       good:'Initiative and self-expression are amplified.',        bad:'Can make matters too personal or ego-driven.'},
+  {num:2, name:'2nd House', theme:'Resources & Values',    type:'Succedent', desc:'Personal finances, material possessions, self-worth, and what you value most. A planet here directly touches your relationship to money and worth.',  good:'Financial matters gain traction and stability.',       bad:'Materialism or attachment may cloud decisions.'},
+  {num:3, name:'3rd House', theme:'Communication',         type:'Cadent',    desc:'Day-to-day communication, short travel, siblings, neighbors, and the immediate environment. Mental activity and information exchange.',               good:'Writing, speaking, and local action flow easily.',     bad:'Scattered thinking; depth may be lacking.'},
+  {num:4, name:'4th House', theme:'Home & Roots',          type:'Angular',   desc:'The IC (Imum Coeli) — home, family, ancestry, emotional foundations, and the private self. Matters here are deeply personal and enduring.',          good:'Home, family, and inner work are supported.',         bad:'Past or family patterns may surface unexpectedly.'},
+  {num:5, name:'5th House', theme:'Creativity & Joy',      type:'Succedent', desc:'Creativity, romance, children, play, speculation, and self-expression. The house of pleasure, performance, and what we do for joy.',                  good:'Creative and romantic energy flows freely.',          bad:'Overindulgence or risky speculation may tempt.'},
+  {num:6, name:'6th House', theme:'Health & Service',      type:'Cadent',    desc:'Daily routines, health, work environment, pets, and service to others. Planets here influence the quality and rhythm of everyday life.',               good:'Practical work and health routines are supported.',    bad:'Overwork, worry, or health matters may surface.'},
+  {num:7, name:'7th House', theme:'Partnerships',          type:'Angular',   desc:'The Descendant — marriage, committed partnerships, contracts, open adversaries, and one-to-one relationships. A strong angular position.',             good:'Partnerships and agreements are highlighted.',        bad:'Conflict with others or projection may arise.'},
+  {num:8, name:'8th House', theme:'Transformation',        type:'Succedent', desc:'Shared resources, debt, taxes, inheritances, sexuality, death and rebirth, and deep psychological transformation. Power and intensity.',              good:'Deep transformation and shared resources are active.', bad:'Power struggles, loss, or hidden matters surface.'},
+  {num:9, name:'9th House', theme:'Philosophy & Expansion',type:'Cadent',    desc:'Higher education, long-distance travel, philosophy, religion, publishing, and foreign cultures. The search for meaning and expanded horizons.',        good:'Wisdom, learning, and expansion are supported.',      bad:'Overconfidence or dogmatic thinking may intrude.'},
+  {num:10,name:'10th House',theme:'Career & Legacy',       type:'Angular',   desc:'The Midheaven (MC) — career, public reputation, authority, life calling, and legacy. The most visible point of the chart; planets act publicly.',     good:'Career and public matters gain strong momentum.',     bad:'Public scrutiny or pressure from authority figures.'},
+  {num:11,name:'11th House',theme:'Community & Goals',     type:'Succedent', desc:'Friendships, social networks, groups, hopes, wishes, and long-term goals. How we participate in collective movements and communities.',               good:'Support from friends, groups, and future goals.',     bad:'Misalignment between personal and group interests.'},
+  {num:12,name:'12th House',theme:'Solitude & the Hidden', type:'Cadent',    desc:'Hidden matters, self-undoing, spiritual retreat, large institutions, and the unconscious. Planets here operate below the surface, often invisibly.',  good:'Spiritual retreat and inner work are deeply potent.', bad:'Hidden challenges or self-sabotage may be active.'},
+];
+function getHouseData(num){return HOUSE_DATA.find(h=>h.num===num)||null;}
+// Angular houses (1,4,7,10) = planets act powerfully; Cadent (3,6,9,12) = weakened
+function houseStrengthLabel(num){return [1,4,7,10].includes(num)?'Angular — acts with force':[2,5,8,11].includes(num)?'Succedent — building strength':'Cadent — introverted energy';}
 
 // ─── ASPECT INTERPRETATION DATA ───────────────────────────────────────────
 const PLANET_DOMAINS={
@@ -896,9 +1030,10 @@ let activeScreen='today',activeCat=0;
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth()+1;
 let guideState={cat:null,subcat:null,intent:null};
 const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
-const CLASS_MAP=['neutral','good-1','good-2','good-3','caution','challenging'];
-const QUALITY_NAMES=['Neutral','Favorable','Favorable','Optimal','Caution','Challenging'];
-const QUALITY_BADGE_CLASS=['qb-neutral','qb-favorable','qb-favorable','qb-optimal','qb-caution','qb-challenging'];
+// Indices: 0=Neutral 1=Slightly Favorable 2=Favorable 3=Optimal 4=Caution 5=Challenging
+const CLASS_MAP=['neutral','good-0','good-1','good-2','caution','challenging'];
+const QUALITY_NAMES=['Neutral','Slightly Favorable','Favorable','Optimal','Caution','Challenging'];
+const QUALITY_BADGE_CLASS=['qb-neutral','qb-slight','qb-favorable','qb-optimal','qb-caution','qb-challenging'];
 
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
@@ -958,7 +1093,7 @@ function renderCalendar(){
 function renderPlanetsStrip(){
   const container=document.getElementById('planets-list');
   container.innerHTML='';
-  const sky=getSkyData(new Date());
+  const sky=getSkyData(new Date(),true);
   PLANETS.forEach(p=>{
     const pos=sky.positions[p.key];
     const rx=pos&&pos.retrograde;
@@ -984,24 +1119,41 @@ function closeSheet(){document.getElementById('sheet-overlay').classList.remove(
 
 function openPlanetSheet(key){
   const p=PLANETS.find(x=>x.key===key);if(!p)return;
-  const sky=getSkyData(new Date());
+  const sky=getSkyData(new Date(),true);
   const pos=sky.positions[key];
   const rx=pos&&pos.retrograde;
   const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';
   const catKey=['finance','comms','mind','spirit'][activeCat];
   const catText=p[catKey]||p.detail;
+  // House context
+  let houseHtml='';
+  if(sky.houses&&sky.houses[key]){
+    const h=sky.houses[key];const hd=getHouseData(h);
+    const dig=Ephemeris.essentialDignity(key,pos.sign);
+    const digLabel=dig>=0.5?'Domicile (strongest)':dig>=0.3?'Exaltation':dig<=-0.5?'Detriment (weakened)':dig<=-0.3?'Fall (challenged)':'Peregrine (neutral)';
+    const digColor=dig>0?'#7dcf9e':dig<0?'#d47070':'var(--cream-dim)';
+    houseHtml=`<div class="sheet-section-title">Placement</div><div class="sheet-body" style="display:flex;flex-direction:column;gap:8px;">
+      <div><span style="color:var(--gold);">${hd?hd.name+' · '+hd.theme:'House '+h}</span><br><span style="font-size:11px;color:var(--cream-dim);">${houseStrengthLabel(h)}</span>${hd?`<div style="font-size:11px;color:var(--cream-dim);margin-top:4px;line-height:1.6;">${hd.desc}</div>`:''}</div>
+      <div><span style="color:${digColor};font-size:11px;">Sign dignity: ${digLabel}</span></div>
+      ${hd&&pos.sign?`<div style="font-size:11px;color:var(--cream-dim);">${key} in ${pos.sign} in the ${hd.name}: ${dig>0?hd.good:dig<0?hd.bad:'Acts according to the house theme without amplification or impediment.'}</div>`:''}
+    </div>`;
+  } else if(userLocation===null){
+    houseHtml=`<div class="sheet-section-title">House Position</div><div class="sheet-body" style="font-size:12px;"><span onclick="openLocationSheet()" style="color:var(--gold);cursor:pointer;">Set your location →</span> to see which house ${key} activates for you.</div>`;
+  }
   const myAspects=sky.aspects.filter(a=>a.p1===key||a.p2===key);
   let aspectHtml='';
   if(myAspects.length>0){
     aspectHtml=`<div class="sheet-section-title">Active Aspects Today</div><div class="sheet-body">`;
     myAspects.slice(0,4).forEach(a=>{
-      const other=a.p1===key?a.p2:a.p1;
+      const other=a.p1===key?a.p2:a.p1;const otherPos=sky.positions[other];
       const color=a.harmony==='positive'?'#7dcf9e':a.harmony==='negative'?'#d47070':'var(--cream-dim)';
-      aspectHtml+=`<div style="margin-bottom:6px;"><span style="color:${color}">${a.symbol} ${key} ${a.name} ${other}</span></div>`;
+      const otherHouse=sky.houses?sky.houses[other]:'';
+      const hLabel=otherHouse?` (${other} in House ${otherHouse})`:'';
+      aspectHtml+=`<div style="margin-bottom:8px;"><span style="color:${color}">${a.symbol} ${key} ${a.name} ${other}</span><span style="font-size:10px;color:var(--cream-dim);">${hLabel}</span><div style="font-size:11px;color:var(--cream-dim);margin-top:2px;">${buildAspectDescription(a,sky.positions)}</div></div>`;
     });
     aspectHtml+=`</div>`;
   }
-  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div><div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${p.current}</div>${aspectHtml}<div class="sheet-section-title">How It Affects · ${CAT_NAMES[activeCat]}</div><div class="sheet-body">${catText}</div>`);
+  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${p.current}</div>${aspectHtml}<div class="sheet-section-title">How It Affects · ${CAT_NAMES[activeCat]}</div><div class="sheet-body">${catText}</div>`);
 }
 
 function openDateSheet(day,score,sky){
@@ -1013,12 +1165,58 @@ function openDateSheet(day,score,sky){
   const negative=sky.aspects.filter(a=>a.harmony==='negative').sort((a,b)=>a.diff-b.diff);
   const rxList=Object.entries(sky.positions).filter(([,v])=>v.retrograde).map(([k])=>k);
   let headline=Ephemeris.generateHeadline(sky);
+
+  // House / rising sign header block
+  let houseContextHtml='';
+  if(sky.ascDegree!=null){
+    const ascZ=Ephemeris.toZodiac(sky.ascDegree);
+    const mcZ=Ephemeris.toZodiac(sky.mcDegree);
+    houseContextHtml=`<div style="font-size:11px;color:var(--cream-dim);margin-bottom:12px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--border-dim);">
+      <span style="color:var(--gold);">↑ ${ascZ.sign} Rising</span> (${Math.floor(ascZ.degree)}°) &nbsp;·&nbsp; <span style="color:var(--gold);">MC ${mcZ.sign}</span> (${Math.floor(mcZ.degree)}°)
+      <div style="margin-top:4px;">Houses calculated for ${userLocation?userLocation.name:'your location'} · noon chart</div>
+    </div>`;
+  } else if(userLocation===null){
+    houseContextHtml=`<div style="font-size:11px;color:var(--cream-dim);margin-bottom:12px;"><span onclick="openLocationSheet()" style="color:var(--gold);cursor:pointer;">📍 Set location</span> to add house positions to each day.</div>`;
+  }
+
+  // Aspect rows with house context
   let bodyHtml='';
-  positive.slice(0,2).forEach(a=>{const desc=buildAspectDescription(a,sky.positions);bodyHtml+=`<div style="margin-bottom:14px;"><div style="margin-bottom:4px;"><strong>${a.p1}</strong> <span style="color:#7dcf9e;font-size:11px;letter-spacing:.04em;">${a.symbol} ${a.name}s</span> <strong>${a.p2}</strong></div><div style="font-size:12px;line-height:1.7;color:var(--cream-dim);">${desc}</div></div>`;});
-  negative.slice(0,1).forEach(a=>{const desc=buildAspectDescription(a,sky.positions);bodyHtml+=`<div style="margin-bottom:14px;"><div style="margin-bottom:4px;color:var(--red-text);"><strong>${a.p1}</strong> <span style="font-size:11px;letter-spacing:.04em;">${a.symbol} ${a.name}s</span> <strong>${a.p2}</strong></div><div style="font-size:12px;line-height:1.7;color:var(--cream-dim);">${desc}</div></div>`;});
-  if(rxList.length>0)bodyHtml+=`<div style="margin-top:6px;color:var(--cream-dim)">Retrograde: ${rxList.join(', ')} — review rather than initiate.</div>`;
+  function houseTag(pName){
+    if(!sky.houses||!sky.houses[pName])return'';
+    const h=sky.houses[pName];const hd=getHouseData(h);
+    return`<span style="font-size:10px;color:var(--cream-faint);margin-left:5px;">H${h}${hd?' · '+hd.theme:''}</span>`;
+  }
+  positive.slice(0,2).forEach(a=>{
+    const desc=buildAspectDescription(a,sky.positions);
+    bodyHtml+=`<div style="margin-bottom:16px;"><div style="margin-bottom:4px;"><strong>${a.p1}</strong>${houseTag(a.p1)} <span style="color:#7dcf9e;font-size:11px;letter-spacing:.04em;">${a.symbol} ${a.name}s</span> <strong>${a.p2}</strong>${houseTag(a.p2)}</div><div style="font-size:12px;line-height:1.7;color:var(--cream-dim);">${desc}</div></div>`;
+  });
+  negative.slice(0,1).forEach(a=>{
+    const desc=buildAspectDescription(a,sky.positions);
+    bodyHtml+=`<div style="margin-bottom:16px;"><div style="margin-bottom:4px;color:var(--red-text);"><strong>${a.p1}</strong>${houseTag(a.p1)} <span style="font-size:11px;letter-spacing:.04em;">${a.symbol} ${a.name}s</span> <strong>${a.p2}</strong>${houseTag(a.p2)}</div><div style="font-size:12px;line-height:1.7;color:var(--cream-dim);">${desc}</div></div>`;
+  });
+
+  // Key planets for this category with sign dignity + house
+  const catPlanets={0:['Venus','Jupiter','Saturn','Mercury'],1:['Mercury','Venus','Mars','Moon'],2:['Moon','Mercury','Mars','Chiron'],3:['Sun','Jupiter','Neptune','Moon']};
+  const keyPs=catPlanets[activeCat]||catPlanets[0];
+  let dignityRows='';
+  keyPs.forEach(pName=>{
+    const pos=sky.positions[pName];if(!pos)return;
+    const dig=Ephemeris.essentialDignity(pName,pos.sign);
+    const hNum=sky.houses?sky.houses[pName]:null;
+    const hd=hNum?getHouseData(hNum):null;
+    if(dig===0&&!hNum)return; // skip if nothing notable
+    const digLabel=dig>=0.5?'domicile ✦':dig>=0.3?'exaltation ✦':dig<=-0.5?'detriment ✦':dig<=-0.3?'fall ✦':'';
+    const digColor=dig>0?'#7dcf9e':dig<0?'#d47070':'var(--cream-dim)';
+    dignityRows+=`<div style="padding:7px 0;border-bottom:1px solid var(--border-dim);font-size:11px;display:flex;justify-content:space-between;align-items:flex-start;">
+      <div><strong style="font-size:12px;">${pName}</strong> in ${pos.sign}${digLabel?` <span style="color:${digColor}">${digLabel}</span>`:''}${pos.retrograde?' <span style="color:#d47070;font-size:10px;">Rx</span>':''}</div>
+      ${hd?`<div style="text-align:right;color:var(--cream-dim);">${hd.name}<br><span style="font-size:10px;color:var(--cream-faint);">${hd.theme}</span></div>`:''}
+    </div>`;
+  });
+  if(dignityRows) bodyHtml+=`<div style="margin-top:14px;"><div class="sheet-section-title">Key Planets — Sign & House</div>${dignityRows}</div>`;
+
+  if(rxList.length>0)bodyHtml+=`<div style="margin-top:10px;font-size:11px;color:var(--cream-dim)">Retrograde: ${rxList.join(', ')} — review rather than initiate.</div>`;
   if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon'].sign} — no major aspects strongly favor or challenge this area today.</div>`;
-  openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[calMonth-1]} ${calYear} · ${CAT_NAMES[activeCat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div><div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
+  openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[calMonth-1]} ${calYear} · ${CAT_NAMES[activeCat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div>${houseContextHtml}<div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1069,7 +1267,7 @@ function renderWindowResults(data){
 function renderCurrentPicture(){
   const catIdx=guideState.cat||0;
   const text=CURRENT_PICTURE[catIdx]||CURRENT_PICTURE[0];
-  const sky=getSkyData(new Date());
+  const sky=getSkyData(new Date(),true);
   document.getElementById('results-list-content').innerHTML=`<div style="padding:4px 0 20px;"><div class="today-label" style="margin-bottom:12px;">Right Now</div><div style="display:flex;flex-direction:column;gap:10px;">${PLANETS.slice(0,5).map(p=>{const pos=sky.positions[p.key];const rx=pos&&pos.retrograde;const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';return`<div class="planet-row" onclick="openPlanetSheet('${p.key}')"><div class="planet-left"><div class="planet-symbol">${p.symbol}</div><div class="planet-info"><div class="planet-name">${p.key}</div><div class="planet-pos">${posStr} · ${rx?'Retrograde':'Direct'}</div></div></div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}">${rx?'Retrograde':'Neutral'}</span></div>`;}).join('')}</div><div style="margin-top:20px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;"><div class="today-label" style="margin-bottom:10px;">Synthesis</div><div class="sheet-body">${text}</div></div></div>`;
 }
 
@@ -1078,7 +1276,7 @@ function renderCurrentPicture(){
 // ═══════════════════════════════════════════════════════
 function renderSkyScreen(){
   renderZodiacWheel();
-  const sky=getSkyData(new Date());
+  const sky=getSkyData(new Date(),true);
   const list=document.getElementById('sky-planet-list');list.innerHTML='';
   PLANETS.forEach(p=>{
     const pos=sky.positions[p.key];const rx=pos&&pos.retrograde;
@@ -1093,7 +1291,7 @@ function renderZodiacWheel(){
   const svg=document.getElementById('zodiac-svg');
   const cx=130,cy=130,r=110,inner=72;
   const signs=['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
-  const sky=getSkyData(new Date());
+  const sky=getSkyData(new Date(),true);
   let html=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(201,168,76,0.15)" stroke-width="1"/>
             <circle cx="${cx}" cy="${cy}" r="${inner}" fill="none" stroke="rgba(201,168,76,0.1)" stroke-width="1"/>
             <circle cx="${cx}" cy="${cy}" r="30" fill="rgba(201,168,76,0.05)" stroke="rgba(201,168,76,0.15)" stroke-width="1"/>`;
@@ -1127,9 +1325,17 @@ function renderZodiacWheel(){
 // ═══════════════════════════════════════════════════════
 function renderLearnScreen(){
   const planetsEl=document.getElementById('learn-planets');
-  if(planetsEl&&!planetsEl.children.length){PLANETS.forEach(p=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${p.symbol}</div><div><div class="learn-item-name">${p.key}</div><div class="learn-item-sub">${p.rules.split(',').slice(0,2).join(',')}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>{const sky=getSkyData(new Date());const pos=sky.positions[p.key];const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr}</div></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div><div class="sheet-section-title">Detail</div><div class="sheet-body">${p.detail}</div><div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${p.current}</div>`);};planetsEl.appendChild(item);});}
+  if(planetsEl&&!planetsEl.children.length){PLANETS.forEach(p=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${p.symbol}</div><div><div class="learn-item-name">${p.key}</div><div class="learn-item-sub">${p.rules.split(',').slice(0,2).join(',')}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>{const sky=getSkyData(new Date(),true);const pos=sky.positions[p.key];const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr}</div></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div><div class="sheet-section-title">Detail</div><div class="sheet-body">${p.detail}</div><div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${p.current}</div>`);};planetsEl.appendChild(item);});}
   const signsEl=document.getElementById('learn-signs');
   if(signsEl&&!signsEl.children.length){ZODIAC_SIGNS.forEach((s,i)=>{const parts=s.split(' ');const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol" style="font-size:16px;">${parts[0]}</div><div><div class="learn-item-name">${parts[1]}</div><div class="learn-item-sub">${ZODIAC_DESCS[i].split('.')[0]}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>openSheet(`<div style="margin-bottom:16px;"><div style="font-size:40px;margin-bottom:8px;">${parts[0]}</div><div class="sheet-planet-title">${parts[1]}</div></div><div class="sheet-section-title">Traits & Themes</div><div class="sheet-body">${ZODIAC_DESCS[i]}</div>`);signsEl.appendChild(item);});}
+  const housesEl=document.getElementById('learn-houses');
+  if(housesEl&&!housesEl.children.length){HOUSE_DATA.forEach(hd=>{
+    const typeColor=hd.type==='Angular'?'#7dcf9e':hd.type==='Succedent'?'var(--gold)':'var(--cream-dim)';
+    const item=document.createElement('div');item.className='learn-item';
+    item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol" style="font-size:12px;font-weight:500;">${hd.num}</div><div><div class="learn-item-name">${hd.name} · ${hd.theme}</div><div class="learn-item-sub" style="color:${typeColor};">${hd.type}</div></div></div><div class="learn-arr">›</div>`;
+    item.onclick=()=>openSheet(`<div style="margin-bottom:16px;"><div style="font-size:36px;margin-bottom:8px;">H${hd.num}</div><div class="sheet-planet-title">${hd.name}</div><div style="font-size:12px;color:${typeColor};margin-top:4px;">${hd.type} house</div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${hd.desc}</div><div class="sheet-section-title">When Planets Are Here</div><div class="sheet-body"><div style="margin-bottom:8px;color:#7dcf9e;">▲ Favorable: ${hd.good}</div><div style="color:#d47070;">▼ Challenging: ${hd.bad}</div></div>`);
+    housesEl.appendChild(item);
+  });}
   const aspectsEl=document.getElementById('learn-aspects');
   if(aspectsEl&&!aspectsEl.children.length){ASPECTS.forEach(a=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${a.symbol}</div><div><div class="learn-item-name">${a.name}</div><div class="learn-item-sub">${a.desc.split('.')[0]}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>openSheet(`<div style="margin-bottom:16px;"><div style="font-size:36px;margin-bottom:8px;">${a.symbol}</div><div class="sheet-planet-title">${a.name}</div></div><div class="sheet-section-title">What It Means</div><div class="sheet-body">${a.desc}</div>`);aspectsEl.appendChild(item);});}
 }
@@ -1138,7 +1344,7 @@ function renderLearnScreen(){
 // TODAY BANNER (live)
 // ═══════════════════════════════════════════════════════
 function updateTodayBanner(){
-  const sky=getSkyData(new Date());
+  const sky=getSkyData(new Date(),true);
   const headline=Ephemeris.generateHeadline(sky);
   const moonPos=sky.positions['Moon'];
   const headlineEl=document.getElementById('today-headline-text');
@@ -1158,9 +1364,60 @@ function updateTodayBanner(){
 }
 
 // ═══════════════════════════════════════════════════════
-// TZ SHEET
+// LOCATION SHEET — Nominatim city autocomplete
 // ═══════════════════════════════════════════════════════
-function openTZSheet(){
+let _locDebounce=null;
+function openLocationSheet(){
+  const activeLine=userLocation
+    ?`<div class="loc-active-badge">📍 ${userLocation.name}</div>`
+    :`<div style="font-size:12px;color:var(--cream-dim);margin-bottom:14px;">No location set — house calculations are disabled. Enter your city to enable them.</div>`;
+  const html=`
+    <div style="margin-bottom:16px;">
+      <div class="sheet-planet-title" style="font-size:20px;">Your Location</div>
+      <div class="sheet-body" style="margin-top:6px;margin-bottom:14px;">Used to calculate house positions — which part of your chart each planet activates. Changes how days are scored.</div>
+      ${activeLine}
+    </div>
+    <div class="loc-search-wrap">
+      <input id="loc-input" class="loc-search-input" type="text" placeholder="Search city…" autocomplete="off" oninput="onLocInput(this.value)">
+      <div class="loc-dropdown" id="loc-dropdown" style="display:none;"></div>
+    </div>
+    <div style="font-size:10px;color:var(--cream-faint);line-height:1.6;">City data via OpenStreetMap Nominatim. Only your city coordinates are stored locally — nothing is sent to any server.</div>
+    ${userLocation?`<div onclick="saveLocation(null);closeSheet();" style="margin-top:16px;text-align:center;font-size:11px;color:var(--cream-dim);cursor:pointer;letter-spacing:.08em;">✕ Clear location</div>`:''}
+  `;
+  openSheet(html);
+  setTimeout(()=>document.getElementById('loc-input')&&document.getElementById('loc-input').focus(),300);
+}
+function onLocInput(val){
+  clearTimeout(_locDebounce);
+  const dd=document.getElementById('loc-dropdown');
+  if(!dd)return;
+  if(val.length<2){dd.style.display='none';return;}
+  _locDebounce=setTimeout(()=>fetchLocSuggestions(val),400);
+}
+function fetchLocSuggestions(q){
+  const dd=document.getElementById('loc-dropdown');
+  if(!dd)return;
+  dd.innerHTML=`<div class="loc-option" style="color:var(--cream-dim);">Searching…</div>`;
+  dd.style.display='block';
+  fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&featuretype=city,town,village`,{headers:{'Accept-Language':'en'}})
+    .then(r=>r.json())
+    .then(results=>{
+      if(!results.length){dd.innerHTML=`<div class="loc-option" style="color:var(--cream-dim);">No results found</div>`;return;}
+      dd.innerHTML=results.map((r,i)=>{
+        const parts=r.display_name.split(',');
+        const name=parts[0].trim();
+        const sub=parts.slice(1,3).join(',').trim();
+        return`<div class="loc-option" onclick="selectLocation(${r.lat},${r.lon},'${name.replace(/'/g,'\\u0027')}')"><div>${name}</div><div class="loc-option-sub">${sub}</div></div>`;
+      }).join('');
+    })
+    .catch(()=>{dd.innerHTML=`<div class="loc-option" style="color:var(--cream-dim);">Could not reach search service</div>`;});
+}
+function selectLocation(lat,lon,name){
+  saveLocation({lat:parseFloat(lat),lon:parseFloat(lon),name});
+  closeSheet();
+}
+
+
   let html=`<div style="margin-bottom:16px;"><div class="sheet-planet-title" style="font-size:20px;">Time Zone</div><div class="sheet-body" style="margin-top:6px;">Select your location. Calculations update to reflect local time.</div></div>`;
   TIMEZONES.forEach(tz=>{const isActive=tz.id===selectedTZ.id;html+=`<div onclick="saveTZ(TIMEZONES.find(t=>t.id==='${tz.id}'));closeSheet();" style="padding:13px 14px;margin-bottom:6px;border-radius:10px;border:1px solid ${isActive?'var(--gold)':'var(--border)'};background:${isActive?'rgba(201,168,76,0.08)':'var(--surface)'};display:flex;justify-content:space-between;align-items:center;cursor:pointer;"><span style="font-size:13px;color:${isActive?'var(--gold)':'var(--cream)'};">${tz.label}</span>${isActive?'<span style="color:var(--gold);font-size:16px;">✓</span>':''}</div>`;});
   openSheet(html);
