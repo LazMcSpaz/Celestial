@@ -1417,7 +1417,10 @@ function selectLocation(lat,lon,name){
   closeSheet();
 }
 
-
+// ═══════════════════════════════════════════════════════
+// TZ SHEET
+// ═══════════════════════════════════════════════════════
+function openTZSheet(){
   let html=`<div style="margin-bottom:16px;"><div class="sheet-planet-title" style="font-size:20px;">Time Zone</div><div class="sheet-body" style="margin-top:6px;">Select your location. Calculations update to reflect local time.</div></div>`;
   TIMEZONES.forEach(tz=>{const isActive=tz.id===selectedTZ.id;html+=`<div onclick="saveTZ(TIMEZONES.find(t=>t.id==='${tz.id}'));closeSheet();" style="padding:13px 14px;margin-bottom:6px;border-radius:10px;border:1px solid ${isActive?'var(--gold)':'var(--border)'};background:${isActive?'rgba(201,168,76,0.08)':'var(--surface)'};display:flex;justify-content:space-between;align-items:center;cursor:pointer;"><span style="font-size:13px;color:${isActive?'var(--gold)':'var(--cream)'};">${tz.label}</span>${isActive?'<span style="color:var(--gold);font-size:16px;">✓</span>':''}</div>`;});
   openSheet(html);
