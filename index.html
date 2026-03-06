@@ -3023,28 +3023,15 @@ function generateDailyRead(skyData,catScores){
   const sentences=[];
   const moon=skyData.positions['Moon'];
   const phaseData=MOON_PHASE_QUALITY[skyData.phaseName]||{desc:'',energy:'neutral'};
-  const dayIdx=Math.floor(Date.now()/86400000);
 
   // 1. Opening — dominant aspect
   const pos=skyData.aspects.filter(a=>a.harmony==='positive').sort((a,b)=>a.diff-b.diff);
   const neg=skyData.aspects.filter(a=>a.harmony==='negative').sort((a,b)=>a.diff-b.diff);
 
   if(pos.length){
-    const t=pos[0];
-    const m1=MYTH[t.p1]||t.p1,m2=MYTH[t.p2]||t.p2;
-    const openers=ASPECT_OPEN_POS[t.name]||ASPECT_OPEN_POS.sextile;
-    const outcomes=ASPECT_OUTCOME_POS[t.name]||ASPECT_OUTCOME_POS.sextile;
-    const opener=openers[dayIdx%openers.length](m1,m2);
-    const outcome=outcomes[dayIdx%outcomes.length];
-    sentences.push(`<em>${opener}</em> ${outcome}`);
+    sentences.push(buildAspectDescription(pos[0],skyData.positions));
   } else if(neg.length){
-    const t=neg[0];
-    const m1=MYTH[t.p1]||t.p1,m2=MYTH[t.p2]||t.p2;
-    const openers=ASPECT_OPEN_NEG[t.name]||ASPECT_OPEN_NEG.square;
-    const outcomes=ASPECT_OUTCOME_NEG[t.name]||ASPECT_OUTCOME_NEG.square;
-    const opener=openers[dayIdx%openers.length](m1,m2);
-    const outcome=outcomes[dayIdx%outcomes.length];
-    sentences.push(`<em>${opener}</em> ${outcome}`);
+    sentences.push(buildAspectDescription(neg[0],skyData.positions));
   }
 
   // 2. Moon sentence
@@ -3123,9 +3110,7 @@ function renderKeyAspect(skyData){
   const m1=MYTH[asp.p1]||asp.p1,m2=MYTH[asp.p2]||asp.p2;
   const isPos=asp.harmony==='positive';
   const dotColor=isPos?'rgba(74,124,89,.75)':'rgba(139,58,58,.75)';
-  const openers=isPos?(ASPECT_OPEN_POS[asp.name]||ASPECT_OPEN_POS.sextile):(ASPECT_OPEN_NEG[asp.name]||ASPECT_OPEN_NEG.square);
-  const outcomes=isPos?(ASPECT_OUTCOME_POS[asp.name]||ASPECT_OUTCOME_POS.sextile):(ASPECT_OUTCOME_NEG[asp.name]||ASPECT_OUTCOME_NEG.square);
-  const desc=openers[0](m1,m2)+' '+outcomes[0];
+  const desc=buildAspectDescription(asp,skyData.positions);
 
   document.getElementById('key-aspect-card').innerHTML=`
     <div class="aspect-card">
@@ -3134,7 +3119,7 @@ function renderKeyAspect(skyData){
         <div class="aspect-planets">${escHtml(m1)} ${asp.symbol} ${escHtml(m2)}</div>
         <span class="ptag ${isPos?'ptag-fav':'ptag-rx'}" style="margin-left:auto;">${asp.name}</span>
       </div>
-      <div class="aspect-desc">${escHtml(desc)}</div>
+      <div class="aspect-desc">${desc}</div>
     </div>`;
 }
 
