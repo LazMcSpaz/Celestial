@@ -783,6 +783,66 @@ body{
 .screen.active .scroll-area{animation:fadeIn .3s ease;}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4;}
 
+/* ── DASHBOARD REDESIGN ───────────────────────────────── */
+.today-greeting-wrap{padding:16px 20px 12px;border-bottom:1px solid var(--border);}
+.today-greeting{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:400;font-style:italic;color:var(--cream-dim);letter-spacing:.02em;line-height:1.45;}
+.daily-read-wrap{padding:14px 20px;border-bottom:1px solid var(--border);}
+.daily-read-label{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:8px;}
+.daily-read-text{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:400;color:var(--cream);line-height:1.7;letter-spacing:.01em;}
+.daily-read-text em{color:var(--gold);font-style:italic;}
+.energy-indicators-wrap{padding:14px 20px;border-bottom:1px solid var(--border);}
+.energy-indicators{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.ei-tile{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px;border-radius:10px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:opacity .15s;user-select:none;}
+.ei-tile:active{opacity:.75;}
+.ei-icon{font-size:16px;line-height:1;}
+.ei-name{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--cream-dim);}
+.ei-label{font-size:9px;letter-spacing:.06em;font-weight:400;color:var(--cream-dim);}
+.ei-optimal{border-color:rgba(74,124,89,.5);background:rgba(74,124,89,.1);}
+.ei-optimal .ei-label{color:#7dcf9e;}
+.ei-favorable{border-color:rgba(74,124,89,.3);background:rgba(74,124,89,.06);}
+.ei-favorable .ei-label{color:#6db888;}
+.ei-slight{border-color:rgba(74,124,89,.18);}
+.ei-slight .ei-label{color:#5aab74;}
+.ei-neutral .ei-label{color:var(--cream-dim);}
+.ei-caution{border-color:rgba(201,168,76,.35);background:rgba(201,168,76,.07);}
+.ei-caution .ei-label{color:var(--amber-text);}
+.ei-challenging{border-color:rgba(139,58,58,.4);background:rgba(139,58,58,.08);}
+.ei-challenging .ei-label{color:var(--red-text);}
+.dash-section{padding:14px 20px;border-bottom:1px solid var(--border);}
+.lunar-card{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;}
+.lunar-card:active{opacity:.8;}
+.lunar-emoji{font-size:34px;line-height:1;flex-shrink:0;margin-top:2px;}
+.lunar-title{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:400;color:var(--cream);margin-bottom:5px;}
+.lunar-desc{font-size:12px;color:var(--cream-dim);line-height:1.6;font-style:italic;}
+.lunar-desc em{color:var(--gold);}
+.aspect-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.aspect-card-header{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.aspect-harmony-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.aspect-planets{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:400;color:var(--cream);}
+.aspect-desc{font-size:12px;color:var(--cream-dim);line-height:1.6;font-style:italic;}
+.coming-up-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.cu-card{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:opacity .15s;}
+.cu-card:active{opacity:.75;}
+.cu-day{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--cream-dim);}
+.cu-date{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--cream);line-height:1;}
+.cu-label{font-size:9px;letter-spacing:.06em;}
+.cu-card.ei-optimal .cu-label{color:#7dcf9e;}
+.cu-card.ei-favorable .cu-label{color:#6db888;}
+.cu-card.ei-slight .cu-label{color:#5aab74;}
+.cu-card.ei-neutral .cu-label{color:var(--cream-dim);}
+.cu-card.ei-caution .cu-label{color:var(--amber-text);}
+.cu-card.ei-challenging .cu-label{color:var(--red-text);}
+.rx-row{display:flex;align-items:flex-start;gap:11px;padding:10px 0;border-bottom:1px solid var(--border-dim);cursor:pointer;}
+.rx-row:last-child{border-bottom:none;}
+.rx-row:active{opacity:.75;}
+.rx-symbol{width:28px;height:28px;background:var(--surface2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;}
+.rx-name{font-size:13px;color:var(--cream);margin-bottom:2px;}
+.rx-note{font-size:11px;color:var(--cream-dim);line-height:1.5;font-style:italic;}
+.cycle-card{border-radius:12px;padding:14px;border:1px solid rgba(201,168,76,.22);}
+.cycle-card-title{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:400;color:var(--cream);margin-bottom:5px;}
+.cycle-card-desc{font-size:12px;color:var(--cream-dim);line-height:1.6;font-style:italic;}
+.stc-faded{opacity:.35;cursor:pointer;}
+
 /* ── TASK FAB ─────────────────────────────────────────── */
 #task-fab{position:absolute;bottom:16px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;color:var(--black);cursor:pointer;z-index:50;box-shadow:0 4px 20px rgba(201,168,76,.4);transition:transform .15s,box-shadow .15s;user-select:none;}
 #task-fab:active{transform:scale(.9);box-shadow:0 2px 10px rgba(201,168,76,.25);}
@@ -895,49 +955,49 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Change location">📍</div>
       </div>
     </div>
-    <div class="today-banner">
-      <div class="today-label">Today's Influence</div>
-      <div class="today-headline" id="today-headline-text">Loading sky data…</div>
-      <div class="planet-pills" id="today-pills"></div>
-    </div>
-    <div class="cat-tabs" id="cat-tabs">
-      <div class="cat-tab active" data-cat="0" onclick="switchCat(0)"><div class="ct-icon">⭕</div><div class="ct-name">Finance</div></div>
-      <div class="cat-tab" data-cat="1" onclick="switchCat(1)"><div class="ct-icon">⚔️</div><div class="ct-name">Comms</div></div>
-      <div class="cat-tab" data-cat="2" onclick="switchCat(2)"><div class="ct-icon">🏆</div><div class="ct-name">Mind</div></div>
-      <div class="cat-tab" data-cat="3" onclick="switchCat(3)"><div class="ct-icon">🪄</div><div class="ct-name">Spirit</div></div>
-    </div>
     <div class="scroll-area">
-      <!-- SURFACED TASKS (hidden until tasks exist) -->
+      <!-- GREETING -->
+      <div class="today-greeting-wrap">
+        <div class="today-greeting" id="today-greeting">Reading the sky…</div>
+      </div>
+      <!-- DAILY ENERGY READ -->
+      <div class="daily-read-wrap">
+        <div class="daily-read-label">Today's Reading</div>
+        <div class="daily-read-text" id="daily-read-text"></div>
+      </div>
+      <!-- ENERGY INDICATORS -->
+      <div class="energy-indicators-wrap">
+        <div class="energy-indicators" id="energy-indicators"></div>
+      </div>
+      <!-- TASKS -->
       <div id="surfaced-tasks-section" class="surfaced-tasks" style="display:none;">
-        <div class="section-label">Surfaced for Today</div>
+        <div class="section-label">For Today</div>
         <div id="surfaced-tasks-list"></div>
         <div class="surfaced-see-all" id="see-all-tasks-link" style="display:none;" onclick="showAllTasks()">See all tasks →</div>
       </div>
-      <div class="calendar-wrap">
-        <div class="cal-header">
-          <div class="cal-month" id="cal-month-label">March 2026</div>
-          <div class="cal-nav"><span onclick="calNav(-1)">‹</span><span onclick="calNav(1)">›</span></div>
-        </div>
-        <div class="cal-days-hdr">
-          <div class="cal-day-lbl">S</div><div class="cal-day-lbl">M</div>
-          <div class="cal-day-lbl">T</div><div class="cal-day-lbl">W</div>
-          <div class="cal-day-lbl">T</div><div class="cal-day-lbl">F</div>
-          <div class="cal-day-lbl">S</div>
-        </div>
-        <div class="cal-grid" id="cal-grid"></div>
-        <div class="cal-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(74,124,89,.72)"></div>Optimal</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(74,124,89,.45)"></div>Favorable</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(74,124,89,.22)"></div>Slight</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(201,168,76,.5)"></div>Caution</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(139,58,58,.5)"></div>Challenging</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#2a2a2a"></div>Neutral</div>
-        </div>
+      <!-- LUNAR SNAPSHOT -->
+      <div class="dash-section" id="lunar-snapshot-wrap">
+        <div id="lunar-snapshot"></div>
       </div>
-      <div class="planets-strip">
-        <div class="section-label">Planets at a Glance</div>
-        <div id="planets-list"></div>
+      <!-- KEY ASPECT -->
+      <div class="dash-section" id="key-aspect-wrap" style="display:none;">
+        <div id="key-aspect-card"></div>
       </div>
+      <!-- COMING UP -->
+      <div class="dash-section">
+        <div class="section-label">Coming Up</div>
+        <div class="coming-up-row" id="coming-up-cards"></div>
+      </div>
+      <!-- RETROGRADE WATCH -->
+      <div class="dash-section" id="retrograde-wrap" style="display:none;">
+        <div class="section-label">Retrograde Watch</div>
+        <div id="retrograde-list"></div>
+      </div>
+      <!-- CYCLE PHASE -->
+      <div class="dash-section" id="cycle-phase-wrap" style="display:none;">
+        <div id="cycle-phase-card"></div>
+      </div>
+      <div style="height:90px;"></div>
     </div>
     <div id="task-fab" onclick="openTaskCreation()" title="Add task">+</div>
   </div>
@@ -1172,7 +1232,7 @@ function getSkyData(date,isLive=false){
   skyCacheDate=key;
   return skyCache;
 }
-function refreshSkyData(){skyCache=null;skyCacheDate=null;renderPlanetsStrip();renderCalendar();updateTodayBanner();if(activeScreen==='sky')renderSkyScreen();}
+function refreshSkyData(){skyCache=null;skyCacheDate=null;renderTodayScreen();if(activeScreen==='sky')renderSkyScreen();}
 
 // ═══════════════════════════════════════════════════════
 // PLANET METADATA
@@ -1408,8 +1468,8 @@ const CURRENT_PICTURE={0:'The current sky presents a <strong>mixed but broadly s
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-let activeScreen='today',activeCat=0;
-let calYear=new Date().getFullYear(),calMonth=new Date().getMonth()+1;
+let activeScreen='today';
+const activeCat=0; // default Finance; no category tabs in new dashboard
 let guideState={cat:null,subcat:null,intent:null};
 const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
 // Indices: 0=Neutral 1=Slightly Favorable 2=Favorable 3=Optimal 4=Caution 5=Challenging
@@ -1442,56 +1502,6 @@ function updateDateTime(){
   document.getElementById('sky-date').textContent=MONTH_NAMES[now.getMonth()]+' '+now.getDate();
 }
 
-// ═══════════════════════════════════════════════════════
-// CATEGORY / CALENDAR
-// ═══════════════════════════════════════════════════════
-function switchCat(i){activeCat=i;document.querySelectorAll('.cat-tab').forEach((t,idx)=>t.classList.toggle('active',idx===i));renderCalendar();}
-function calNav(dir){calMonth+=dir;if(calMonth>12){calMonth=1;calYear++;}if(calMonth<1){calMonth=12;calYear--;}renderCalendar();}
-
-function renderCalendar(){
-  document.getElementById('cal-month-label').textContent=MONTH_NAMES[calMonth-1]+' '+calYear;
-  const firstDay=new Date(calYear,calMonth-1,1).getDay();
-  const daysInMonth=new Date(calYear,calMonth,0).getDate();
-  const today=new Date();
-  const grid=document.getElementById('cal-grid');
-  grid.innerHTML='';
-  for(let i=0;i<firstDay;i++){const e=document.createElement('div');e.className='cal-cell empty';grid.appendChild(e);}
-  for(let d=1;d<=daysInMonth;d++){
-    const date=new Date(calYear,calMonth-1,d);
-    const sky=getSkyData(date);
-    const score=Ephemeris.scoreDay(sky,activeCat);
-    const isToday=today.getFullYear()===calYear&&today.getMonth()===calMonth-1&&today.getDate()===d;
-    const el=document.createElement('div');
-    el.className='cal-cell '+CLASS_MAP[score]+(isToday?' today':'');
-    el.textContent=d;
-    el.onclick=()=>openDateSheet(d,score,sky);
-    grid.appendChild(el);
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-// PLANETS STRIP
-// ═══════════════════════════════════════════════════════
-function renderPlanetsStrip(){
-  const container=document.getElementById('planets-list');
-  container.innerHTML='';
-  const sky=getSkyData(new Date(),true);
-  PLANETS.forEach(p=>{
-    const pos=sky.positions[p.key];
-    const rx=pos&&pos.retrograde;
-    const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';
-    const hasPos=sky.aspects.some(a=>(a.p1===p.key||a.p2===p.key)&&a.harmony==='positive');
-    const hasNeg=sky.aspects.some(a=>(a.p1===p.key||a.p2===p.key)&&a.harmony==='negative');
-    const tag=rx?'rx':hasPos&&!hasNeg?'fav':hasNeg&&!hasPos?'rx':'neu';
-    const tagClass=tag==='fav'?'ptag-fav':tag==='rx'?'ptag-rx':'ptag-neu';
-    const tagText=rx?'Retrograde':tag==='fav'?'Favorable':tag==='rx'?'Challenging':'Neutral';
-    const row=document.createElement('div');
-    row.className='planet-row';
-    row.innerHTML=`<div class="planet-left"><div class="planet-symbol">${p.symbol}</div><div class="planet-info"><div class="planet-name">${p.key}</div><div class="planet-pos">${posStr} · ${rx?'Retrograde':'Direct'}</div></div></div><span class="ptag ${tagClass}">${tagText}</span>`;
-    row.onclick=()=>openPlanetSheet(p.key);
-    container.appendChild(row);
-  });
-}
 
 // ═══════════════════════════════════════════════════════
 // BOTTOM SHEET
@@ -1538,8 +1548,10 @@ function openPlanetSheet(key){
   openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${p.current}</div>${aspectHtml}<div class="sheet-section-title">How It Affects · ${CAT_NAMES[activeCat]}</div><div class="sheet-body">${catText}</div>`);
 }
 
-function openDateSheet(day,score,sky){
-  if(!sky){const date=new Date(calYear,calMonth-1,day);sky=getSkyData(date);score=Ephemeris.scoreDay(sky,activeCat);}
+function openDateSheet(day,score,sky,yr,mo){
+  const now=new Date();
+  const useYr=yr||now.getFullYear(),useMo=mo||(now.getMonth()+1);
+  if(!sky){const date=new Date(useYr,useMo-1,day);sky=getSkyData(date);score=Ephemeris.scoreDay(sky,activeCat);}
   const quality=QUALITY_NAMES[score];
   const badgeClass=QUALITY_BADGE_CLASS[score];
   const dotColor=score===3?'#7dcf9e':score>=4?(score===5?'#d47070':'var(--gold)'):score>=1?'#7dcf9e':'var(--cream-dim)';
@@ -1598,7 +1610,7 @@ function openDateSheet(day,score,sky){
 
   if(rxList.length>0)bodyHtml+=`<div style="margin-top:10px;font-size:11px;color:var(--cream-dim)">Retrograde: ${rxList.join(', ')} — review rather than initiate.</div>`;
   if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon'].sign} — no major aspects strongly favor or challenge this area today.</div>`;
-  openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[calMonth-1]} ${calYear} · ${CAT_NAMES[activeCat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div>${houseContextHtml}<div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
+  openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[useMo-1]} ${useYr} · ${CAT_NAMES[activeCat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div>${houseContextHtml}<div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1785,28 +1797,6 @@ function renderLearnScreen(){
   if(aspectsEl&&!aspectsEl.children.length){ASPECTS.forEach(a=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${a.symbol}</div><div><div class="learn-item-name">${a.name}</div><div class="learn-item-sub">${a.desc.split('.')[0]}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>openSheet(`<div style="margin-bottom:16px;"><div style="font-size:36px;margin-bottom:8px;">${a.symbol}</div><div class="sheet-planet-title">${a.name}</div></div><div class="sheet-section-title">What It Means</div><div class="sheet-body">${a.desc}</div>`);aspectsEl.appendChild(item);});}
 }
 
-// ═══════════════════════════════════════════════════════
-// TODAY BANNER (live)
-// ═══════════════════════════════════════════════════════
-function updateTodayBanner(){
-  const sky=getSkyData(new Date(),true);
-  const headline=Ephemeris.generateHeadline(sky);
-  const moonPos=sky.positions['Moon'];
-  const headlineEl=document.getElementById('today-headline-text');
-  if(headlineEl){let hl=headline;PLANETS.forEach(p=>{hl=hl.replace(new RegExp('\\b'+p.key+'\\b','g'),`<em>${p.key}</em>`);});headlineEl.innerHTML=hl;}
-  const pillsEl=document.getElementById('today-pills');
-  if(pillsEl){
-    const rxPlanets=Object.entries(sky.positions).filter(([,v])=>v.retrograde).map(([k])=>k);
-    let pillsHtml='';
-    const merc=sky.positions['Mercury'];
-    if(merc)pillsHtml+=`<span class="pill" onclick="openPlanetSheet('Mercury')">☿ ${merc.retrograde?'Retrograde':'Direct'}</span>`;
-    if(moonPos)pillsHtml+=`<span class="pill" onclick="openPlanetSheet('Moon')">${sky.phaseEmoji} ${moonPos.sign} Moon</span>`;
-    const jup=sky.positions['Jupiter'];
-    if(jup)pillsHtml+=`<span class="pill" onclick="openPlanetSheet('Jupiter')">♃ ${jup.sign}</span>`;
-    rxPlanets.filter(p=>p!=='Mercury'&&p!=='North Node').slice(0,2).forEach(p=>{const meta=PLANETS.find(x=>x.key===p);if(meta)pillsHtml+=`<span class="pill" onclick="openPlanetSheet('${p}')">${meta.symbol} Rx</span>`;});
-    pillsEl.innerHTML=pillsHtml;
-  }
-}
 
 // ═══════════════════════════════════════════════════════
 // APP TOUR
@@ -1820,24 +1810,17 @@ const TOUR_STEPS = [
   },
   {
     screen: 'today',
-    target: '.today-banner',
-    title: 'Today\'s Influence',
-    body: 'This headline captures the sky\'s dominant energy right now. Tap any pill — like the Moon sign or Mercury\'s status — for a full interpretation.',
+    target: '.daily-read-wrap',
+    title: 'Today\'s Reading',
+    body: 'Your daily energy read — 2-4 sentences synthesizing the dominant planetary aspects, moon phase, and any retrograde influences.',
     position: 'below',
   },
   {
     screen: 'today',
-    target: '#cat-tabs',
-    title: 'Life Categories',
-    body: 'Switch between Finance & Career, Communication, Mind & Body, and Spirit. Each recalculates the calendar and scoring based on the planets most relevant to that area of life.',
+    target: '.energy-indicators-wrap',
+    title: 'Energy Indicators',
+    body: 'Four tiles showing the sky\'s rating for Finance, Communication, Mind & Body, and Spirit. Tap any tile for a full breakdown.',
     position: 'below',
-  },
-  {
-    screen: 'today',
-    target: '.calendar-wrap',
-    title: 'Timing Calendar',
-    body: 'Green days are favorable, gold means caution, red is challenging. Tap any date for a full breakdown — aspects, house positions, and what\'s driving the score.',
-    position: 'above',
   },
   {
     screen: 'guide',
@@ -2705,17 +2688,21 @@ function renderSurfacedTasks(){
   const scored=surfaceTasks();
   if(!scored.length){section.style.display='none';return;}
   section.style.display='block';
-  const top=scored.slice(0,2);
-  const hasMore=scored.length>2;
-  list.innerHTML=top.map(({task,catScore})=>{
+  const top=scored.slice(0,3);
+  const hasMore=scored.length>3;
+  list.innerHTML=top.map(({task,catScore},idx)=>{
+    const isFaded=idx===2;
     const reason=getSurfaceReason(task,catScore);
     const dlHtml=task.deadline?`<div class="stc-deadline">${escHtml(fmtDeadline(task.deadline))}</div>`:'';
-    return`<div class="surfaced-task-card">
-      <div class="stc-check${task.completed?' done':''}" onclick="toggleTaskComplete('${escHtml(task.id)}');event.stopPropagation();"></div>
+    const fadeClass=isFaded?' stc-faded':'';
+    const tapAttr=isFaded?`onclick="showAllTasks()"`:'' ;
+    const checkClick=isFaded?`onclick="showAllTasks()"`:`onclick="toggleTaskComplete('${escHtml(task.id)}');event.stopPropagation();"`;
+    return`<div class="surfaced-task-card${fadeClass}" ${tapAttr}>
+      <div class="stc-check${task.completed?' done':''}" ${checkClick}></div>
       <div class="stc-body">
         <div class="stc-title${task.completed?' done':''}">${escHtml(task.title)}</div>
         ${dlHtml}
-        <div class="stc-reason">${reason}</div>
+        ${!isFaded?`<div class="stc-reason">${reason}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -2903,14 +2890,326 @@ function updateAllTasksSheet(){
 }
 
 // ═══════════════════════════════════════════════════════
+// DASHBOARD — MYTHOLOGY VOICE SYSTEM
+// ═══════════════════════════════════════════════════════
+
+const MYTH={
+  Sun:'Helios',Moon:'Selene',Mercury:'Hermes',Venus:'Aphrodite',
+  Mars:'Ares',Jupiter:'Zeus',Saturn:'Kronos',Uranus:'Ouranos',
+  Neptune:'Poseidon',Chiron:'Chiron',
+  'North Node':'the Dragon\'s Head','Black Moon Lilith':'Lilith',
+};
+
+const MOON_SIGN_DESC={
+  Aries:'the impulse to begin',
+  Taurus:'the body\'s quiet wisdom',
+  Gemini:'the restless, searching mind',
+  Cancer:'the hearth and the hidden',
+  Leo:'the generous flame',
+  Virgo:'the careful, discerning hand',
+  Libra:'the longing for balance',
+  Scorpio:'the depths and the unsaid',
+  Sagittarius:'the reach toward the horizon',
+  Capricorn:'the long patience of mountains',
+  Aquarius:'the detached, observing eye',
+  Pisces:'the dissolving of edges',
+};
+
+const MOON_PHASE_QUALITY={
+  'New Moon':       {desc:'A threshold moment — good for setting intention.',energy:'quiet'},
+  'Waxing Crescent':{desc:'Energy is beginning to build.',energy:'building'},
+  'First Quarter':  {desc:'Momentum is rising — push through resistance.',energy:'building'},
+  'Waxing Gibbous': {desc:'Refinement before the peak — focus counts now.',energy:'high'},
+  'Full Moon':      {desc:'The sky is at full expression. Emotions run bright.',energy:'peak'},
+  'Waning Gibbous': {desc:'A time to share and release what is finished.',energy:'releasing'},
+  'Last Quarter':   {desc:'Let go of what no longer serves.',energy:'low'},
+  'Waning Crescent':{desc:'Rest and prepare for the next cycle.',energy:'low'},
+};
+
+const RETROGRADE_NOTES={
+  Mercury:'Hermes walks backward — words may tangle; revisit rather than initiate.',
+  Venus:  'Aphrodite turns inward — a time to reassess what you value and who you love.',
+  Mars:   'Ares retreats — frustration may simmer; redirect energy inward.',
+  Jupiter:'Zeus reflects — expansion slows; review where growth has been scattered.',
+  Saturn: 'Kronos reconsiders — old structures call for careful revision.',
+  Uranus: 'Ouranos loops back — expect the unexpected to surface from within.',
+  Neptune:'Poseidon recedes — illusions may clarify, or deepen.',
+  Chiron: 'Chiron revisits old wounds — healing asks for patience.',
+};
+
+const ASPECT_OPEN_POS={
+  trine:   [(p1,p2)=>`${p1} and ${p2} are in natural accord today`,(p1,p2)=>`${p1} extends its gifts freely to ${p2}`],
+  sextile: [(p1,p2)=>`${p1} and ${p2} are in easy conversation`,(p1,p2)=>`A productive exchange flows between ${p1} and ${p2}`],
+  conjunct:[(p1,p2)=>`${p1} and ${p2} walk in close union today`,(p1,p2)=>`${p1} merges its nature with ${p2}`],
+};
+const ASPECT_OPEN_NEG={
+  square:  [(p1,p2)=>`${p1} and ${p2} are in friction`,(p1,p2)=>`${p1} pulls against ${p2} today`],
+  opposite:[(p1,p2)=>`${p1} and ${p2} face one another across the sky`,(p1,p2)=>`${p1} and ${p2} are in opposition — integration is the work`],
+};
+const ASPECT_OUTCOME_POS={
+  trine:   ['— a day that rewards trust and forward movement.','— lean into what feels natural.'],
+  sextile: ['— small efforts compound well today.','— cooperation comes easily if you reach for it.'],
+  conjunct:['— a concentration of energy awaits direction.','— focus this intensity deliberately.'],
+};
+const ASPECT_OUTCOME_NEG={
+  square:  ['— proceed carefully; friction can still forge something useful.','— what resists you today has something to teach.'],
+  opposite:['— hold the tension without forcing resolution.','— both forces are real; listen to both.'],
+};
+
+const DOMAIN_HINTS={
+  Mercury:'sharp thinking and clear exchange',
+  Venus:  'warmth and creative expression',
+  Jupiter:'expansion and good fortune',
+  Moon:   'emotional clarity and intuition',
+  Sun:    'vitality and purpose',
+  Mars:   'decisive action',
+  Saturn: 'steady, patient progress',
+  Neptune:'imagination and inner knowing',
+  Chiron: 'healing and honest reflection',
+};
+
+const CAT_ICONS_D=['⭕','⚔️','🏆','🪄'];
+const CAT_SHORT_D=['Finance','Comms','Mind','Spirit'];
+// scoreDay: 0=neutral,1=slight,2=favorable,3=optimal,4=caution,5=challenging
+const SCORE_CLASS_D=['ei-neutral','ei-slight','ei-favorable','ei-optimal','ei-caution','ei-challenging'];
+const SCORE_LABEL_D=['Neutral','Slight','Favorable','Optimal','Caution','Difficult'];
+const DAY_ABBR_D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+const CYCLE_PHASE_DATA={
+  menstrual: {name:'Menstrual Phase',desc:'A time of turning inward. The body asks for rest; the mind is best suited for reflection and release. Align with Selene\'s dark phase.',bg:'rgba(139,58,58,.08)'},
+  follicular:{name:'Follicular Phase',desc:'Energy and clarity are returning. A natural time to begin, to plan, to emerge — the spring of the cycle.',bg:'rgba(74,124,89,.06)'},
+  ovulatory: {name:'Ovulatory Phase',desc:'Peak expressiveness and outward energy. Ideal for communication, collaboration, and creative work.',bg:'rgba(201,168,76,.06)'},
+  luteal:    {name:'Luteal Phase',desc:'Energy turns inward again. The mind sharpens for analysis and completion. Attend to what needs finishing.',bg:'rgba(100,100,150,.07)'},
+};
+
+const CAT_CLOSINGS=[
+  'The clearest path today runs through <em>finance and practical matters</em>.',
+  'Communication and connection are well-starred today — reach out.',
+  'Mind and body are aligned — tend to your energy and your thinking.',
+  'Spirit and intuition are open — trust what arrives quietly.',
+];
+
+// ── Greeting ─────────────────────────────────────────
+function generateGreeting(skyData,catScores){
+  // Retrograde check (prioritised order)
+  for(const p of['Mercury','Venus','Mars','Saturn','Jupiter']){
+    if(skyData.positions[p]?.retrograde&&RETROGRADE_NOTES[p]){
+      return RETROGRADE_NOTES[p].split(' — ')[0]+'.';
+    }
+  }
+  // Best positive aspect
+  const pos=skyData.aspects.filter(a=>a.harmony==='positive').sort((a,b)=>a.diff-b.diff);
+  if(pos.length){
+    const t=pos[0];
+    const m1=MYTH[t.p1]||t.p1,m2=MYTH[t.p2]||t.p2;
+    const hint=DOMAIN_HINTS[t.p1]||DOMAIN_HINTS[t.p2]||'focused action';
+    return`${m1} and ${m2} are aligned — a good day for ${hint}.`;
+  }
+  // Best negative aspect
+  const neg=skyData.aspects.filter(a=>a.harmony==='negative').sort((a,b)=>a.diff-b.diff);
+  if(neg.length){
+    const t=neg[0];
+    const m1=MYTH[t.p1]||t.p1,m2=MYTH[t.p2]||t.p2;
+    return`${m1} and ${m2} are in friction today — move thoughtfully.`;
+  }
+  // Moon sign fallback
+  const moon=skyData.positions['Moon'];
+  if(moon)return`Selene drifts through ${MOON_SIGN_DESC[moon.sign]||moon.sign}.`;
+  return'The sky is quiet today — a good day to listen.';
+}
+
+// ── Daily read ────────────────────────────────────────
+function generateDailyRead(skyData,catScores){
+  const sentences=[];
+  const moon=skyData.positions['Moon'];
+  const phaseData=MOON_PHASE_QUALITY[skyData.phaseName]||{desc:'',energy:'neutral'};
+
+  // 1. Opening — dominant aspect
+  const pos=skyData.aspects.filter(a=>a.harmony==='positive').sort((a,b)=>a.diff-b.diff);
+  const neg=skyData.aspects.filter(a=>a.harmony==='negative').sort((a,b)=>a.diff-b.diff);
+
+  if(pos.length){
+    sentences.push(buildAspectDescription(pos[0],skyData.positions));
+  } else if(neg.length){
+    sentences.push(buildAspectDescription(neg[0],skyData.positions));
+  }
+
+  // 2. Moon sentence
+  if(moon){
+    const signDesc=MOON_SIGN_DESC[moon.sign]||moon.sign;
+    const phaseNote=phaseData.desc||'';
+    sentences.push(`Selene moves through <em>${signDesc}</em>. ${phaseNote}`);
+  }
+
+  // 3. Retrograde context (one planet max)
+  const rxPlanets=Object.entries(skyData.positions)
+    .filter(([k,v])=>v.retrograde&&RETROGRADE_NOTES[k])
+    .map(([k])=>k);
+  if(rxPlanets.length){
+    const note=RETROGRADE_NOTES[rxPlanets[0]];
+    if(note)sentences.push(note);
+  }
+
+  // 4. Closing guidance
+  const best=catScores.indexOf(Math.max(...catScores));
+  const worst=Math.max(...catScores);
+  if(catScores[best]>=2){
+    sentences.push(CAT_CLOSINGS[best]);
+  } else if(worst>=4){
+    sentences.push('The sky asks for patience and deliberate movement today.');
+  } else {
+    sentences.push('A quiet day — meet it on its own terms.');
+  }
+
+  return sentences.join(' ');
+}
+
+// ── Energy indicators ─────────────────────────────────
+function renderEnergyIndicators(catScores,skyData){
+  const el=document.getElementById('energy-indicators');
+  const today=new Date();
+  const todayNum=today.getDate();
+  const bestScore=Math.max(...catScores);
+  el.innerHTML=catScores.map((score,i)=>{
+    const cls=SCORE_CLASS_D[score]||'ei-neutral';
+    const label=SCORE_LABEL_D[score]||'Neutral';
+    return`<div class="ei-tile ${cls}" onclick="openDateSheet(${todayNum},${score},null,${today.getFullYear()},${today.getMonth()+1})">
+      <div class="ei-icon">${CAT_ICONS_D[i]}</div>
+      <div class="ei-name">${CAT_SHORT_D[i]}</div>
+      <div class="ei-label">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Lunar snapshot ────────────────────────────────────
+function renderLunarSnapshot(skyData){
+  const moon=skyData.positions['Moon'];
+  if(!moon)return;
+  const phaseData=MOON_PHASE_QUALITY[skyData.phaseName]||{desc:''};
+  const signDesc=MOON_SIGN_DESC[moon.sign]||moon.sign;
+  document.getElementById('lunar-snapshot').innerHTML=`
+    <div class="lunar-card" onclick="openPlanetSheet('Moon')">
+      <div class="lunar-emoji">${skyData.phaseEmoji}</div>
+      <div class="lunar-body">
+        <div class="lunar-title">${skyData.phaseName} in ${moon.sign}</div>
+        <div class="lunar-desc">Selene holds the quality of <em>${signDesc}</em>. ${phaseData.desc}</div>
+      </div>
+    </div>`;
+}
+
+// ── Key aspect ────────────────────────────────────────
+function renderKeyAspect(skyData){
+  const wrap=document.getElementById('key-aspect-wrap');
+  const sorted=[...skyData.aspects]
+    .filter(a=>a.harmony!=='neutral')
+    .sort((a,b)=>a.diff-b.diff);
+  if(!sorted.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+
+  const asp=sorted[0];
+  const m1=MYTH[asp.p1]||asp.p1,m2=MYTH[asp.p2]||asp.p2;
+  const isPos=asp.harmony==='positive';
+  const dotColor=isPos?'rgba(74,124,89,.75)':'rgba(139,58,58,.75)';
+  const desc=buildAspectDescription(asp,skyData.positions);
+
+  document.getElementById('key-aspect-card').innerHTML=`
+    <div class="aspect-card">
+      <div class="aspect-card-header">
+        <div class="aspect-harmony-dot" style="background:${dotColor};"></div>
+        <div class="aspect-planets">${escHtml(m1)} ${asp.symbol} ${escHtml(m2)}</div>
+        <span class="ptag ${isPos?'ptag-fav':'ptag-rx'}" style="margin-left:auto;">${asp.name}</span>
+      </div>
+      <div class="aspect-desc">${desc}</div>
+    </div>`;
+}
+
+// ── Coming up ─────────────────────────────────────────
+function renderComingUp(){
+  const container=document.getElementById('coming-up-cards');
+  const html=[1,2,3].map(offset=>{
+    const d=new Date();
+    d.setHours(12,0,0,0);
+    d.setDate(d.getDate()+offset);
+    const sky=getSkyData(d,false);
+    const scores=[0,1,2,3].map(c=>scoreDay(sky,c));
+    const goodOnes=scores.filter(s=>s<=3);
+    const badOnes=scores.filter(s=>s>=4);
+    const worstBad=badOnes.length?Math.max(...badOnes):0;
+    const bestGood=goodOnes.length?Math.max(...goodOnes):0;
+    const rep=worstBad>=4?worstBad:bestGood;
+    const cls=SCORE_CLASS_D[rep]||'ei-neutral';
+    const label=SCORE_LABEL_D[rep]||'Neutral';
+    const dateNum=d.getDate();
+    const dayStr=DAY_ABBR_D[d.getDay()];
+    return`<div class="cu-card ${cls}" onclick="openDateSheet(${dateNum},${rep},null,${d.getFullYear()},${d.getMonth()+1})">
+      <div class="cu-day">${dayStr}</div>
+      <div class="cu-date">${dateNum}</div>
+      <div class="cu-label">${label}</div>
+    </div>`;
+  }).join('');
+  container.innerHTML=html;
+}
+
+// ── Retrograde watch ──────────────────────────────────
+function renderRetrogrades(skyData){
+  const wrap=document.getElementById('retrograde-wrap');
+  const list=document.getElementById('retrograde-list');
+  const rxPlanets=Object.entries(skyData.positions)
+    .filter(([k,v])=>v.retrograde&&RETROGRADE_NOTES[k])
+    .map(([k])=>k);
+  if(!rxPlanets.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  list.innerHTML=rxPlanets.map(p=>{
+    const meta=PLANETS.find(x=>x.key===p);
+    const symbol=meta?meta.symbol:'●';
+    return`<div class="rx-row" onclick="openPlanetSheet('${escHtml(p)}')">
+      <div class="rx-symbol">${symbol}</div>
+      <div>
+        <div class="rx-name">${escHtml(MYTH[p]||p)} <span style="color:var(--cream-dim);font-size:11px;">(${escHtml(p)})</span></div>
+        <div class="rx-note">${escHtml(RETROGRADE_NOTES[p])}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Cycle phase card ──────────────────────────────────
+function renderCycleCard(){
+  const wrap=document.getElementById('cycle-phase-wrap');
+  const phase=getCyclePhase();
+  if(!phase){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const data=CYCLE_PHASE_DATA[phase];
+  document.getElementById('cycle-phase-card').innerHTML=`
+    <div class="cycle-card" style="background:${data.bg};">
+      <div class="section-label" style="margin-bottom:6px;">Your Cycle</div>
+      <div class="cycle-card-title">${escHtml(data.name)}</div>
+      <div class="cycle-card-desc">${escHtml(data.desc)}</div>
+    </div>`;
+}
+
+// ── Orchestrator ──────────────────────────────────────
+function renderTodayScreen(){
+  const now=new Date();
+  const skyData=getSkyData(now,true);
+  const catScores=[0,1,2,3].map(c=>scoreDay(skyData,c));
+
+  document.getElementById('today-greeting').textContent=generateGreeting(skyData,catScores);
+  document.getElementById('daily-read-text').innerHTML=generateDailyRead(skyData,catScores);
+  renderEnergyIndicators(catScores,skyData);
+  renderSurfacedTasks();
+  renderLunarSnapshot(skyData);
+  renderKeyAspect(skyData);
+  renderComingUp();
+  renderRetrogrades(skyData);
+  renderCycleCard();
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 updateDateTime();
 setInterval(updateDateTime,30000);
-updateTodayBanner();
-renderCalendar();
-renderPlanetsStrip();
-renderSurfacedTasks();
+renderTodayScreen();
 </script>
 </body>
 </html>
