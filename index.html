@@ -1793,35 +1793,450 @@ function _positionTourStep(step) {
 }
 
 // ═══════════════════════════════════════════════════════
-// ONBOARDING OVERLAY
+// ONBOARDING — Multi-step flow
 // ═══════════════════════════════════════════════════════
-let _obDebounce=null;
-let _obPending=null; // { lat, lon, name } selected from dropdown but not yet confirmed
+let obSteps=[];
+let obStepIdx=0;
+let obData={};
+let _obLocDebounce=null;
+let _obBirthPending=null;
+let _obCurrPending=null;
+
+function buildObSteps(){
+  obSteps=['welcome','birth-date','birth-time','birth-location','current-location','chronotype','work-style','season','cultivating','cycle','notifications','complete'];
+}
+
+function initOnboarding(){
+  obData={
+    birthDate:null,birthTimeKnown:true,birthTime:null,
+    birthLoc:null,currentLoc:null,sameLocation:false,
+    chronotype:null,workStyle:null,season:null,cultivating:'',
+    cycleOptIn:false,cycleLength:28,cycleLastStart:'',
+    notifMorning:true,notifMorningTime:'08:00',notifTasks:true,notifPlanetary:true,
+  };
+  buildObSteps();
+  obStepIdx=0;
+  _obBirthPending=null;
+  _obCurrPending=null;
+  renderObStep();
+}
 
 function showOnboarding(){
-  const ob=document.getElementById('onboarding');
-  if(ob)ob.classList.remove('hidden');
-}
-function hideOnboarding(){
-  const ob=document.getElementById('onboarding');
-  const oc=document.getElementById('ob-confirm');
-  if(ob)ob.classList.add('hidden');
-  if(oc)oc.classList.add('hidden');
+  const el=document.getElementById('onboarding');
+  if(el)el.classList.remove('hidden');
+  initOnboarding();
 }
 
-function onObInput(val){
-  clearTimeout(_obDebounce);
-  _obPending=null;
-  const btn=document.getElementById('ob-btn');
-  if(btn){btn.disabled=true;btn.style.opacity='.45';btn.style.cursor='default';}
-  const dd=document.getElementById('ob-dropdown');
+function hideOnboarding(){
+  const el=document.getElementById('onboarding');
+  if(el)el.classList.add('hidden');
+}
+
+function obGoBack(){
+  if(obStepIdx>0){obStepIdx--;renderObStep();}
+}
+
+function obGoNext(){
+  const step=obSteps[obStepIdx];
+  // Inject birth-time-note after birth-time if time unknown
+  if(step==='birth-time'){
+    const ni=obSteps.indexOf('birth-time-note');
+    if(!obData.birthTimeKnown&&ni===-1) obSteps.splice(obStepIdx+1,0,'birth-time-note');
+    else if(obData.birthTimeKnown&&ni!==-1) obSteps.splice(ni,1);
+  }
+  obStepIdx++;
+  if(obStepIdx>=obSteps.length){finishOnboarding();return;}
+  renderObStep();
+}
+
+function obSkipStep(){
+  const step=obSteps[obStepIdx];
+  if(step==='cycle'){
+    obData.cycleOptIn=false;
+    try{localStorage.setItem('celestial_cycle_declined','1');}catch(e){}
+  }
+  obStepIdx++;
+  if(obStepIdx>=obSteps.length){finishOnboarding();return;}
+  renderObStep();
+}
+
+function finishOnboarding(){
+  try{localStorage.setItem('celestial_birth',JSON.stringify({
+    date:obData.birthDate,timeKnown:obData.birthTimeKnown,time:obData.birthTime,
+    lat:obData.birthLoc?.lat,lon:obData.birthLoc?.lon,cityName:obData.birthLoc?.name,
+    timezone:obData.birthLoc?.timezone,
+  }));}catch(e){}
+  const loc=obData.sameLocation?obData.birthLoc:obData.currentLoc;
+  if(loc)saveLocation(loc);
+  if(obData.cycleOptIn&&obData.cycleLastStart){
+    try{localStorage.setItem('celestial_cycle',JSON.stringify({avgLength:obData.cycleLength,lastStart:obData.cycleLastStart}));}catch(e){}
+  }
+  try{localStorage.setItem('celestial_prefs',JSON.stringify({
+    chronotype:obData.chronotype,workStyle:obData.workStyle,
+    season:obData.season,cultivating:obData.cultivating,
+  }));}catch(e){}
+  try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
+  hideOnboarding();
+  maybeShowTourPrompt();
+}
+
+function renderObStep(){
+  const step=obSteps[obStepIdx];
+  const isWelcome=step==='welcome';
+  const isComplete=step==='complete';
+  const skippable=['cycle','notifications'].includes(step);
+  const nav=document.getElementById('ob-nav');
+  nav.style.display=isWelcome?'none':'';
+  const backBtn=document.getElementById('ob-back-btn');
+  backBtn.style.visibility=(obStepIdx<=1||isWelcome)?'hidden':'visible';
+  const skipBtn=document.getElementById('ob-skip-btn');
+  skipBtn.style.display=skippable?'':'none';
+  const progressSteps=obSteps.filter(s=>s!=='welcome'&&s!=='complete');
+  document.getElementById('ob-dots').innerHTML=progressSteps.map(s=>{
+    const si=obSteps.indexOf(s);
+    const cls=si<obStepIdx?'ob-dot done':si===obStepIdx?'ob-dot active':'ob-dot';
+    return`<div class="${cls}"></div>`;
+  }).join('');
+  const renderer=OB_RENDERERS[step];
+  if(!renderer)return;
+  const r=renderer();
+  document.getElementById('ob-content').innerHTML=r.html;
+  document.getElementById('ob-footer').innerHTML=r.footer;
+  document.getElementById('ob-content').scrollTop=0;
+  if(r.init)setTimeout(r.init,50);
+}
+
+function obUpdateContinue(){
+  const step=obSteps[obStepIdx];
+  const btn=document.getElementById('ob-continue-btn');
+  if(!btn)return;
+  const ok=obCanAdvance(step);
+  btn.disabled=!ok;
+  ok?btn.classList.remove('disabled'):btn.classList.add('disabled');
+}
+
+function obCanAdvance(step){
+  if(step==='birth-date')return!!obData.birthDate;
+  if(step==='birth-location')return!!(obData.birthLoc||_obBirthPending);
+  if(step==='current-location')return obData.sameLocation||!!(obData.currentLoc||_obCurrPending);
+  if(step==='chronotype')return!!obData.chronotype;
+  if(step==='work-style')return!!obData.workStyle;
+  if(step==='season')return!!obData.season;
+  if(step==='cycle')return!obData.cycleOptIn||(obData.cycleOptIn&&!!obData.cycleLastStart);
+  return true;
+}
+
+const OB_RENDERERS={
+  'welcome':()=>({
+    html:`<div class="ob-welcome">
+      <div class="ob-star">✦</div>
+      <div class="ob-title">Celestial</div>
+      <div class="ob-sub">Timing is everything</div>
+      <div class="ob-divider"></div>
+      <p class="ob-welcome-body">A timing engine built on the movements of the sky, the rhythms of your body, and the shape of your days. The more it knows you, the more precisely it works.</p>
+    </div>`,
+    footer:`<button class="ob-btn ob-btn-solid" onclick="obGoNext()">Begin</button>`,
+  }),
+
+  'birth-date':()=>{
+    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const bd=obData.birthDate||{};
+    const yNow=new Date().getFullYear();
+    const yOpts=Array.from({length:100},(_,i)=>{const y=yNow-i;return`<option value="${y}"${bd.year==y?' selected':''}>${y}</option>`;}).join('');
+    const mOpts=months.map((m,i)=>`<option value="${i+1}"${bd.month==i+1?' selected':''}>${m}</option>`).join('');
+    const dOpts=Array.from({length:31},(_,i)=>`<option value="${i+1}"${bd.day==i+1?' selected':''}>${i+1}</option>`).join('');
+    return{
+      html:`<div class="ob-step">
+        <div class="ob-question">When were you born?</div>
+        <div class="ob-hint">Your birth date anchors your natal chart — the map of the sky at the moment you arrived.</div>
+        <div class="ob-date-row">
+          <select class="ob-select" id="ob-birth-month" onchange="obSetBirthDate()" style="flex:1.6;"><option value="">Month</option>${mOpts}</select>
+          <select class="ob-select" id="ob-birth-day" onchange="obSetBirthDate()"><option value="">Day</option>${dOpts}</select>
+          <select class="ob-select" id="ob-birth-year" onchange="obSetBirthDate()" style="flex:1.4;"><option value="">Year</option>${yOpts}</select>
+        </div>
+      </div>`,
+      footer:`<button class="ob-btn${obData.birthDate?'':' disabled'}" id="ob-continue-btn" onclick="obGoNext()"${obData.birthDate?'':' disabled'}>Continue</button>`,
+    };
+  },
+
+  'birth-time':()=>{
+    const bt=obData.birthTime||{};
+    const unknown=!obData.birthTimeKnown;
+    const hOpts=Array.from({length:12},(_,i)=>{const h=i+1;return`<option value="${h}"${bt.hour12==h?' selected':''}>${h}</option>`;}).join('');
+    const minOpts=Array.from({length:60},(_,i)=>{const m=String(i).padStart(2,'0');return`<option value="${i}"${bt.minute==i?' selected':''}>${m}</option>`;}).join('');
+    return{
+      html:`<div class="ob-step">
+        <div class="ob-question">What time were you born?</div>
+        <div class="ob-hint">Birth time determines your rising sign and house positions — the most personal layer of your chart.</div>
+        <div id="ob-time-wrap" style="opacity:${unknown?'.3':'1'};pointer-events:${unknown?'none':'all'};transition:opacity .2s;">
+          <div class="ob-time-row">
+            <select class="ob-select" id="ob-birth-hour" onchange="obSetBirthTime()" style="flex:1;"><option value="">Hour</option>${hOpts}</select>
+            <div class="ob-time-sep">:</div>
+            <select class="ob-select" id="ob-birth-min" onchange="obSetBirthTime()" style="flex:1;"><option value="">Min</option>${minOpts}</select>
+            <select class="ob-select" id="ob-birth-ampm" onchange="obSetBirthTime()" style="flex:.9;">
+              <option value="AM"${(bt.ampm||'AM')==='AM'?' selected':''}>AM</option>
+              <option value="PM"${bt.ampm==='PM'?' selected':''}>PM</option>
+            </select>
+          </div>
+        </div>
+        <label class="ob-time-unknown-btn">
+          <input type="checkbox" id="ob-time-unknown"${unknown?' checked':''} onchange="obToggleTimeUnknown(this.checked)">
+          <span class="ob-time-unknown-label">I don't know my exact birth time</span>
+        </label>
+      </div>`,
+      footer:`<button class="ob-btn" id="ob-continue-btn" onclick="obGoNext()">Continue</button>`,
+    };
+  },
+
+  'birth-time-note':()=>({
+    html:`<div class="ob-step">
+      <div class="ob-question">A small note</div>
+      <div class="ob-info-box">
+        <div class="ob-info-icon">🌙</div>
+        <p class="ob-info-text">Without a birth time, Celestial can't calculate your rising sign or house positions — the most personal part of your chart.<br><br>You'll still have full access to your Sun, Moon, and all planetary placements, transit timing, and the complete sky intelligence. The readings will be meaningful — just not as precisely calibrated.<br><br>If you find your birth time later, you can update it in settings.</p>
+      </div>
+    </div>`,
+    footer:`<button class="ob-btn" onclick="obGoNext()">Understood, continue</button>`,
+  }),
+
+  'birth-location':()=>{
+    const sel=obData.birthLoc;
+    return{
+      html:`<div class="ob-step">
+        <div class="ob-question">Where were you born?</div>
+        <div class="ob-hint">Your birth location sets the geographic anchor for your natal chart.</div>
+        ${sel?`<div class="ob-selected-loc">✓ ${sel.name}</div>`:''}
+        <div class="ob-search-wrap">
+          <input id="ob-birth-loc-input" class="ob-search-input" type="text" placeholder="City or town…" autocomplete="off" value="${sel?.name||''}" oninput="obLocInput(this.value,'birth')">
+          <div class="ob-dropdown" id="ob-birth-loc-dd" style="display:none;"></div>
+        </div>
+        <div class="ob-privacy"><span>🔒</span><span>Stored on your device only. We never see your location.</span></div>
+      </div>`,
+      footer:`<button class="ob-btn${sel||_obBirthPending?'':' disabled'}" id="ob-continue-btn" onclick="obSaveBirthLoc()"${sel||_obBirthPending?'':' disabled'}>Continue</button>`,
+      init:()=>{ document.getElementById('ob-birth-loc-input')?.focus(); },
+    };
+  },
+
+  'current-location':()=>{
+    const same=obData.sameLocation;
+    const sel=obData.currentLoc;
+    const canGo=same||sel||_obCurrPending;
+    return{
+      html:`<div class="ob-step">
+        <div class="ob-question">Where are you now?</div>
+        <div class="ob-hint">Your current location determines live house positions and your local sky. This can be different from where you were born.</div>
+        <label class="ob-same-loc">
+          <input type="checkbox" id="ob-same-loc-chk"${same?' checked':''} onchange="obToggleSameLoc(this.checked)">
+          <span class="ob-same-loc-label">Same as my birth location</span>
+        </label>
+        <div id="ob-curr-loc-wrap" style="display:${same?'none':'block'};">
+          ${sel?`<div class="ob-selected-loc">✓ ${sel.name}</div>`:''}
+          <div class="ob-search-wrap">
+            <input id="ob-curr-loc-input" class="ob-search-input" type="text" placeholder="City or town…" autocomplete="off" value="${sel?.name||''}" oninput="obLocInput(this.value,'curr')">
+            <div class="ob-dropdown" id="ob-curr-loc-dd" style="display:none;"></div>
+          </div>
+        </div>
+        <div class="ob-privacy"><span>🔒</span><span>Stored on your device only. We never see your location.</span></div>
+      </div>`,
+      footer:`<button class="ob-btn${canGo?'':' disabled'}" id="ob-continue-btn" onclick="obSaveCurrLoc()"${canGo?'':' disabled'}>Continue</button>`,
+      init:()=>{ if(!same)document.getElementById('ob-curr-loc-input')?.focus(); },
+    };
+  },
+
+  'chronotype':()=>{
+    const opts=[
+      {v:'early-morning',icon:'🌅',label:'Early Morning',desc:'Before 9am — when the world is quiet and I\'m most alive'},
+      {v:'morning',icon:'☀️',label:'Morning to Midday',desc:'I peak in the late morning and early afternoon'},
+      {v:'afternoon',icon:'🌤',label:'Afternoon',desc:'My stride hits after noon'},
+      {v:'evening',icon:'🌙',label:'Evening',desc:'My energy rises as the day winds down'},
+      {v:'late-night',icon:'🌑',label:'Late Night',desc:'I come alive when the world goes quiet'},
+    ];
+    return{
+      html:`<div class="ob-step">
+        <div class="ob-question">When does your day feel most alive?</div>
+        <div class="ob-hint">Your natural energy rhythm helps the app surface tasks at the right time.</div>
+        <div class="ob-card-grid">${opts.map(o=>`<div class="ob-card${obData.chronotype===o.v?' selected':''}" onclick="obSelect('chronotype','${o.v}')"><div class="ob-card-icon">${o.icon}</div><div><div class="ob-card-label">${o.label}</div><div class="ob-card-desc">${o.desc}</div></div></div>`).join('')}</div>
+      </div>`,
+      footer:`<button class="ob-btn${obData.chronotype?'':' disabled'}" id="ob-continue-btn" onclick="obGoNext()"${obData.chronotype?'':' disabled'}>Continue</button>`,
+    };
+  },
+
+  'work-style':()=>{
+    const opts=[
+      {v:'deep-focus',icon:'🎯',label:'Deep uninterrupted focus',desc:'Long blocks, minimal context switching'},
+      {v:'short-bursts',icon:'⚡',label:'Short bursts with breaks',desc:'Pomodoro-style, frequent resets'},
+      {v:'collaborative',icon:'🤝',label:'Collaborative and social',desc:'Energy comes from working with others'},
+      {v:'variable',icon:'🌊',label:'Varies day to day',desc:'I read the room and adapt'},
+    ];
+    return{
+      html:`<div class="ob-step">
+        <div class="ob-question">How do you work best?</div>
+        <div class="ob-hint">Your work style shapes which tasks get surfaced when, and how the day is framed for you.</div>
+        <div class="ob-card-grid">${opts.map(o=>`<div class="ob-card${obData.workStyle===o.v?' selected':''}" onclick="obSelect('workStyle','${o.v}')"><div class="ob-card-icon">${o.icon}</div><div><div class="ob-card-label">${o.label}</div><div class="ob-card-desc">${o.desc}</div></div></div>`).join('')}</div>
+      </div>`,
+      footer:`<button class="ob-btn${obData.workStyle?'':' disabled'}" id="ob-continue-btn" onclick="obGoNext()"${obData.workStyle?'':' disabled'}>Continue</button>`,
+    };
+  },
+
+  'season':()=>{
+    const opts=[
+      {v:'building',icon:'🏗',label:'Building something new'},
+      {v:'healing',icon:'🌿',label:'Healing or recovering'},
+      {v:'navigating',icon:'🧭',label:'Navigating change'},
+      {v:'clarity',icon:'💎',label:'Seeking clarity'},
+      {v:'deepening',icon:'🌊',label:'Deepening relationships'},
+      {v:'creating',icon:'✨',label:'Creating and expressing'},
+    ];
+    return{
+      html:`<div class="ob-step">
+        <div class="ob-question">What season are you in?</div>
+        <div class="ob-hint">The dominant theme of this chapter of your life. This shapes which transits and tasks surface most prominently.</div>
+        <div class="ob-card-grid-2">${opts.map(o=>`<div class="ob-card-2${obData.season===o.v?' selected':''}" onclick="obSelect('season','${o.v}')"><div class="ob-card-2-icon">${o.icon}</div><div class="ob-card-2-label">${o.label}</div></div>`).join('')}</div>
+      </div>`,
+      footer:`<button class="ob-btn${obData.season?'':' disabled'}" id="ob-continue-btn" onclick="obGoNext()"${obData.season?'':' disabled'}>Continue</button>`,
+    };
+  },
+
+  'cultivating':()=>({
+    html:`<div class="ob-step">
+      <div class="ob-question">What are you working toward?</div>
+      <div class="ob-hint">In a few words or a sentence — what matters most to you right now? This becomes the quiet intention behind everything the app surfaces.</div>
+      <textarea id="ob-cultivating-input" class="ob-textarea" placeholder="e.g. Building the courage to start something of my own…" maxlength="200">${obData.cultivating}</textarea>
+      <div style="font-size:10px;color:var(--cream-faint);margin-top:8px;text-align:right;" id="ob-cult-count">${obData.cultivating.length}/200</div>
+    </div>`,
+    footer:`<button class="ob-btn" onclick="obGoNext()">Continue</button>`,
+    init:()=>{
+      const ta=document.getElementById('ob-cultivating-input');
+      if(ta)ta.addEventListener('input',function(){
+        obData.cultivating=this.value;
+        const c=document.getElementById('ob-cult-count');
+        if(c)c.textContent=this.value.length+'/200';
+      });
+    },
+  }),
+
+  'cycle':()=>({
+    html:`<div class="ob-step">
+      <div class="ob-question">Cycle awareness</div>
+      <div class="ob-hint" style="margin-bottom:20px;">Celestial can layer your menstrual cycle alongside lunar and transit data — honoring it as a natural rhythm alongside the cosmic ones. Follicular, ovulatory, luteal, and menstrual phases each carry distinct energies that can shape your timing.<br><br>This is entirely optional and never leaves your device.</div>
+      <label class="ob-card" style="cursor:pointer;margin-bottom:20px;align-items:center;">
+        <div style="flex:1;">
+          <div class="ob-card-label">Include my cycle in readings</div>
+          <div class="ob-card-desc">Your data stays on this device only</div>
+        </div>
+        <label class="ob-toggle" style="flex-shrink:0;">
+          <input type="checkbox" id="ob-cycle-chk"${obData.cycleOptIn?' checked':''} onchange="obToggleCycle(this.checked)">
+          <div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></div>
+        </label>
+      </label>
+      <div id="ob-cycle-fields" style="display:${obData.cycleOptIn?'block':'none'};">
+        <div class="ob-cycle-field">
+          <div class="ob-field-label">Average cycle length (days)</div>
+          <input type="number" class="ob-number-input" id="ob-cycle-length" min="20" max="45" value="${obData.cycleLength}" oninput="obData.cycleLength=parseInt(this.value)||28">
+        </div>
+        <div class="ob-cycle-field">
+          <div class="ob-field-label">First day of your last period</div>
+          <input type="date" class="ob-search-input" id="ob-cycle-start" value="${obData.cycleLastStart}" oninput="obData.cycleLastStart=this.value;obUpdateContinue()">
+        </div>
+        <div class="ob-privacy"><span>🔒</span><span>This data lives on your device only. Celestial never sees it and it will never leave your phone.</span></div>
+      </div>
+    </div>`,
+    footer:`<button class="ob-btn${!obData.cycleOptIn||(obData.cycleOptIn&&obData.cycleLastStart)?'':' disabled'}" id="ob-continue-btn" onclick="obGoNext()"${!obData.cycleOptIn||(obData.cycleOptIn&&obData.cycleLastStart)?'':' disabled'}>Continue</button>`,
+  }),
+
+  'notifications':()=>({
+    html:`<div class="ob-step">
+      <div class="ob-question">Stay in rhythm</div>
+      <div class="ob-hint">Choose how Celestial reaches you. All of these can be changed later in settings.</div>
+      <div class="ob-toggle-list">
+        <div class="ob-toggle-row">
+          <div class="ob-toggle-info">
+            <div class="ob-toggle-label">Morning Brief</div>
+            <div class="ob-toggle-desc">A daily energy read sent at your chosen time</div>
+            <div class="ob-time-row-small" id="notif-time-row" style="display:${obData.notifMorning?'flex':'none'};">
+              <span style="font-size:11px;color:var(--cream-faint);">Time:</span>
+              <input type="time" class="ob-time-input" id="ob-morning-time" value="${obData.notifMorningTime}" oninput="obData.notifMorningTime=this.value">
+            </div>
+          </div>
+          <label class="ob-toggle"><input type="checkbox"${obData.notifMorning?' checked':''} onchange="obData.notifMorning=this.checked;document.getElementById('notif-time-row').style.display=this.checked?'flex':'none'"><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></div></label>
+        </div>
+        <div class="ob-toggle-row">
+          <div class="ob-toggle-info">
+            <div class="ob-toggle-label">Task Reminders</div>
+            <div class="ob-toggle-desc">Alerts the evening before and morning of deadlines</div>
+          </div>
+          <label class="ob-toggle"><input type="checkbox"${obData.notifTasks?' checked':''} onchange="obData.notifTasks=this.checked"><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></label>
+        </div>
+        <div class="ob-toggle-row">
+          <div class="ob-toggle-info">
+            <div class="ob-toggle-label">Planetary Events</div>
+            <div class="ob-toggle-desc">Notable transits, Moon phase changes, retrogrades</div>
+          </div>
+          <label class="ob-toggle"><input type="checkbox"${obData.notifPlanetary?' checked':''} onchange="obData.notifPlanetary=this.checked"><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></label>
+        </div>
+      </div>
+    </div>`,
+    footer:`<button class="ob-btn" onclick="obGoNext()">Continue</button>`,
+  }),
+
+  'complete':()=>({
+    html:`<div class="ob-complete">
+      <div class="ob-complete-star">✦</div>
+      <div class="ob-complete-title">You're ready</div>
+      <p class="ob-complete-body">Celestial will grow more accurate and useful the longer you use it. Every day teaches it something new about your rhythms.</p>
+      <div class="ob-trial-box">
+        <div class="ob-trial-price">Free</div>
+        <div class="ob-trial-period">for your first 30 days</div>
+        <div class="ob-trial-feature"><div class="ob-trial-dot">◆</div><div>Full access to all features</div></div>
+        <div class="ob-trial-feature"><div class="ob-trial-dot">◆</div><div>Personal natal chart timing</div></div>
+        <div class="ob-trial-feature"><div class="ob-trial-dot">◆</div><div>Intelligent task surfacing</div></div>
+        <div class="ob-trial-feature"><div class="ob-trial-dot">◆</div><div>Then $7.77 / month — cancel anytime</div></div>
+      </div>
+    </div>`,
+    footer:`<button class="ob-btn ob-btn-solid" onclick="finishOnboarding()">Begin my free month</button>`,
+  }),
+};
+
+// ── Onboarding helpers ─────────────────────────────────
+function obSelect(field,value){obData[field]=value;renderObStep();}
+
+function obSetBirthDate(){
+  const m=document.getElementById('ob-birth-month')?.value;
+  const d=document.getElementById('ob-birth-day')?.value;
+  const y=document.getElementById('ob-birth-year')?.value;
+  obData.birthDate=(m&&d&&y)?{month:+m,day:+d,year:+y}:null;
+  obUpdateContinue();
+}
+
+function obSetBirthTime(){
+  const h=document.getElementById('ob-birth-hour')?.value;
+  const min=document.getElementById('ob-birth-min')?.value;
+  const ap=document.getElementById('ob-birth-ampm')?.value||'AM';
+  if(h&&min){
+    const hour24=ap==='PM'?(+h%12)+12:+h%12;
+    obData.birthTime={hour24,minute:+min,hour12:+h,ampm:ap};
+  }
+}
+
+function obToggleTimeUnknown(checked){
+  obData.birthTimeKnown=!checked;
+  if(checked)obData.birthTime=null;
+  const wrap=document.getElementById('ob-time-wrap');
+  if(wrap){wrap.style.opacity=checked?'.3':'1';wrap.style.pointerEvents=checked?'none':'all';}
+}
+
+function obLocInput(val,type){
+  clearTimeout(_obLocDebounce);
+  const ddId=type==='birth'?'ob-birth-loc-dd':'ob-curr-loc-dd';
+  const dd=document.getElementById(ddId);
   if(!dd)return;
   if(val.length<2){dd.style.display='none';return;}
-  _obDebounce=setTimeout(()=>fetchObSuggestions(val),400);
+  _obLocDebounce=setTimeout(()=>obFetchLoc(val,type),400);
 }
 
-function fetchObSuggestions(q){
-  const dd=document.getElementById('ob-dropdown');
+function obFetchLoc(q,type){
+  const ddId=type==='birth'?'ob-birth-loc-dd':'ob-curr-loc-dd';
+  const dd=document.getElementById(ddId);
   if(!dd)return;
   dd.innerHTML=`<div class="ob-option" style="color:var(--cream-dim);">Searching…</div>`;
   dd.style.display='block';
@@ -1833,51 +2248,54 @@ function fetchObSuggestions(q){
         const parts=r.display_name.split(',');
         const name=parts[0].trim();
         const sub=parts.slice(1,3).join(',').trim();
-        return`<div class="ob-option" onclick="obSelectResult(${r.lat},${r.lon},'${name.replace(/'/g,'\\u0027')}')"><div>${name}</div><div class="ob-option-sub">${sub}</div></div>`;
+        return`<div class="ob-option" onclick="obPickLoc(${r.lat},${r.lon},'${name.replace(/'/g,'\\u0027')}','${type}')"><div>${name}</div><div class="ob-option-sub">${sub}</div></div>`;
       }).join('');
     })
     .catch(()=>{dd.innerHTML=`<div class="ob-option" style="color:var(--cream-dim);">Could not reach search service</div>`;});
 }
 
-function obSelectResult(lat,lon,name){
-  _obPending={lat:parseFloat(lat),lon:parseFloat(lon),name};
-  const inp=document.getElementById('ob-input');
-  if(inp)inp.value=name;
-  const dd=document.getElementById('ob-dropdown');
+function obPickLoc(lat,lon,name,type){
+  const loc={lat:parseFloat(lat),lon:parseFloat(lon),name};
+  const dd=document.getElementById(type==='birth'?'ob-birth-loc-dd':'ob-curr-loc-dd');
+  const inp=document.getElementById(type==='birth'?'ob-birth-loc-input':'ob-curr-loc-input');
   if(dd)dd.style.display='none';
-  const btn=document.getElementById('ob-btn');
-  if(btn){btn.disabled=false;btn.style.opacity='1';btn.style.cursor='pointer';}
+  if(inp)inp.value=name;
+  if(type==='birth')_obBirthPending=loc;
+  else _obCurrPending=loc;
+  obUpdateContinue();
 }
 
-function obConfirmLocation(){
-  if(!_obPending)return;
-  const {lat,lon,name}=_obPending;
-  fetch(`https://timeapi.io/api/TimeZone/coordinate?latitude=${lat}&longitude=${lon}`)
+function obSaveBirthLoc(){
+  const loc=_obBirthPending||obData.birthLoc;
+  if(!loc)return;
+  fetch(`https://timeapi.io/api/TimeZone/coordinate?latitude=${loc.lat}&longitude=${loc.lon}`)
     .then(r=>r.json())
-    .then(d=>{
-      saveLocation({lat,lon,name,timezone:d.timeZone||null});
-      hideOnboarding();
-      maybeShowTourPrompt();
-    })
-    .catch(()=>{
-      saveLocation({lat,lon,name,timezone:null});
-      hideOnboarding();
-      maybeShowTourPrompt();
-    });
+    .then(d=>{obData.birthLoc={...loc,timezone:d.timeZone||null};_obBirthPending=null;obGoNext();})
+    .catch(()=>{obData.birthLoc={...loc,timezone:null};_obBirthPending=null;obGoNext();});
 }
 
-function obSkip(){
-  const oc=document.getElementById('ob-confirm');
-  if(oc)oc.classList.remove('hidden');
+function obSaveCurrLoc(){
+  if(obData.sameLocation){obData.currentLoc=null;obGoNext();return;}
+  const loc=_obCurrPending||obData.currentLoc;
+  if(!loc)return;
+  fetch(`https://timeapi.io/api/TimeZone/coordinate?latitude=${loc.lat}&longitude=${loc.lon}`)
+    .then(r=>r.json())
+    .then(d=>{obData.currentLoc={...loc,timezone:d.timeZone||null};_obCurrPending=null;obGoNext();})
+    .catch(()=>{obData.currentLoc={...loc,timezone:null};_obCurrPending=null;obGoNext();});
 }
-function obBackToSearch(){
-  const oc=document.getElementById('ob-confirm');
-  if(oc)oc.classList.add('hidden');
+
+function obToggleSameLoc(checked){
+  obData.sameLocation=checked;
+  const wrap=document.getElementById('ob-curr-loc-wrap');
+  if(wrap)wrap.style.display=checked?'none':'block';
+  obUpdateContinue();
 }
-function obDismiss(){
-  try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
-  hideOnboarding();
-  maybeShowTourPrompt();
+
+function obToggleCycle(checked){
+  obData.cycleOptIn=checked;
+  const fields=document.getElementById('ob-cycle-fields');
+  if(fields)fields.style.display=checked?'block':'none';
+  obUpdateContinue();
 }
 
 // Show onboarding on first open

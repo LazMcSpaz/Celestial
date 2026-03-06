@@ -265,15 +265,21 @@ All notification types are individually togglable. Quiet hours are respected.
 - **Stack:** To be decided collaboratively. Node/Express + PostgreSQL is a solid default; Supabase is worth considering for faster auth + database setup
 
 ### Local Storage Schema (on-device)
+
+The following keys are stored locally on the user's device only. **Tasks are not stored locally — they live in the cloud backend, tied to the user's account, so they sync across devices.**
+
 ```
-celestial_birth       { date, time, timeKnown, lat, lon, cityName }
+celestial_birth       { date, time, timeKnown, lat, lon, cityName, timezone }
 celestial_loc         { lat, lon, name, timezone }
 celestial_cycle       { avgLength, lastStart }
 celestial_natal       { [cached chart computation] }
-celestial_prefs       { chronotype, workStyle, season, cultivationTags[] }
+celestial_prefs       { chronotype, workStyle, season, cultivating }
 celestial_onboarded   '1'
 celestial_tour_seen   '1'
+celestial_cycle_declined  '1'   (set if user declined cycle opt-in — never prompted again)
 ```
+
+**Note on cultivating intent:** The raw `cultivating` text entered by the user is saved to `celestial_prefs` locally. At the end of onboarding, a single one-time API call to **Claude Haiku** extracts 2–3 thematic tags from this free-text response (e.g. "courage", "creative discipline", "financial freedom"). These tags are stored server-side with the user's account and used to quietly influence the daily read and task surfacing. The raw text itself is not retained server-side after tag extraction.
 
 ### Privacy Architecture Notes
 - Sensitive local data (birth, cycle) should be flagged clearly in the UI as device-only
