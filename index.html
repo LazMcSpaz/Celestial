@@ -1198,6 +1198,9 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   </div>
 </div>
 <script>
+// ── EPHEMERIS ALIASES ─────────────────────────────────
+const {calculate,scoreDay}=Ephemeris;
+
 // ── TIMEZONE — derived from entered city, not the device ─────────────────
 // Uses the IANA timezone name stored with the location to compute accurate
 // UTC offsets for any date, including all DST transitions automatically.
