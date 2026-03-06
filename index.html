@@ -782,6 +782,66 @@ body{
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .screen.active .scroll-area{animation:fadeIn .3s ease;}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4;}
+
+/* ── TASK FAB ─────────────────────────────────────────── */
+#task-fab{position:absolute;bottom:16px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;color:var(--black);cursor:pointer;z-index:50;box-shadow:0 4px 20px rgba(201,168,76,.4);transition:transform .15s,box-shadow .15s;user-select:none;}
+#task-fab:active{transform:scale(.9);box-shadow:0 2px 10px rgba(201,168,76,.25);}
+
+/* ── SURFACED TASKS ───────────────────────────────────── */
+.surfaced-tasks{padding:14px 20px 0;}
+.surfaced-task-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;}
+.stc-check{width:22px;height:22px;border:1px solid var(--border);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s;cursor:pointer;margin-top:1px;}
+.stc-check.done{background:var(--gold);border-color:var(--gold);}
+.stc-check.done::after{content:'✓';font-size:11px;color:var(--black);font-weight:600;}
+.stc-body{flex:1;min-width:0;}
+.stc-title{font-size:14px;color:var(--cream);margin-bottom:3px;line-height:1.35;}
+.stc-title.done{text-decoration:line-through;color:var(--cream-dim);}
+.stc-deadline{font-size:11px;color:var(--cream-dim);margin-bottom:3px;}
+.stc-reason{font-size:11px;color:var(--cream-dim);font-style:italic;line-height:1.4;}
+.surfaced-see-all{text-align:center;padding:6px 20px 14px;font-size:12px;color:var(--gold);cursor:pointer;letter-spacing:.05em;}
+
+/* ── TASK CREATION MODAL ──────────────────────────────── */
+#task-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:210;display:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+#task-modal-overlay.open{display:block;}
+#task-modal{position:fixed;left:0;right:0;bottom:0;z-index:211;background:var(--surface);border-radius:20px 20px 0 0;border-top:1px solid var(--border);max-height:92vh;display:none;flex-direction:column;}
+#task-modal.open{display:flex;}
+.task-modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 4px;flex-shrink:0;}
+.task-modal-header{padding:8px 20px 0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.task-modal-title{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:400;color:var(--cream);letter-spacing:.04em;}
+.task-modal-close{color:var(--cream-dim);font-size:22px;cursor:pointer;padding:4px 8px;line-height:1;}
+.task-step-dots{display:flex;gap:6px;padding:10px 20px 0;flex-shrink:0;}
+.task-step-dot{width:5px;height:5px;border-radius:50%;background:var(--border);transition:background .2s;}
+.task-step-dot.active{background:var(--gold);}
+.task-step-dot.done{background:var(--gold-dim);}
+.task-modal-body{padding:16px 20px 8px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.task-modal-step{display:none;}
+.task-modal-step.active{display:block;}
+.task-step-label{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:12px;}
+.task-name-input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);padding:8px 0;font-size:20px;font-family:'Cormorant Garamond',serif;font-weight:400;color:var(--cream);outline:none;letter-spacing:.02em;}
+.task-name-input::placeholder{color:var(--cream-faint);}
+.task-date-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--cream);outline:none;font-family:'Jost',sans-serif;appearance:none;-webkit-appearance:none;color-scheme:dark;}
+.task-skip-btn{width:100%;text-align:center;padding:14px;color:var(--cream-dim);font-size:13px;cursor:pointer;letter-spacing:.04em;}
+.task-skip-btn:active{color:var(--cream);}
+.repeat-options{display:flex;flex-direction:column;gap:9px;}
+.repeat-option{padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:14px;color:var(--cream);transition:border-color .2s,background .2s;}
+.repeat-option.selected{border-color:var(--gold);background:var(--gold-glow);color:var(--gold);}
+.repeat-option:active{opacity:.8;}
+.tag-field-label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:6px;margin-top:14px;}
+.tag-field-label:first-of-type{margin-top:0;}
+.tag-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--cream);outline:none;font-family:'Jost',sans-serif;appearance:none;-webkit-appearance:none;cursor:pointer;color-scheme:dark;}
+.tag-select option{background:var(--surface2);}
+.tag-auto-note{font-size:12px;color:var(--cream-dim);line-height:1.55;margin-bottom:14px;font-style:italic;}
+.task-conflict-warn{background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:10px;padding:11px 14px;font-size:12px;color:var(--amber-text);line-height:1.55;margin-bottom:14px;}
+.task-confirm-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+.task-confirm-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:400;color:var(--cream);margin-bottom:10px;line-height:1.3;}
+.task-confirm-tags{display:flex;flex-wrap:wrap;gap:7px;}
+.task-confirm-tag{font-size:10px;padding:3px 10px;border-radius:10px;border:1px solid var(--border);color:var(--cream-dim);background:var(--surface);letter-spacing:.04em;}
+.task-confirm-tag.tag-deadline{border-color:rgba(201,168,76,.35);color:var(--amber-text);background:rgba(201,168,76,.08);}
+.task-btn-row{display:flex;gap:10px;padding:12px 20px calc(28px + env(safe-area-inset-bottom,0px));flex-shrink:0;}
+.task-btn{flex:1;padding:13px;border-radius:12px;font-size:14px;font-family:'Jost',sans-serif;font-weight:400;letter-spacing:.06em;cursor:pointer;border:none;transition:opacity .15s;}
+.task-btn:active{opacity:.75;}
+.task-btn-primary{background:var(--gold);color:var(--black);}
+.task-btn-ghost{background:transparent;border:1px solid var(--border);color:var(--cream-dim);}
 </style>
 </head>
 <body>
@@ -847,6 +907,12 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div class="cat-tab" data-cat="3" onclick="switchCat(3)"><div class="ct-icon">🪄</div><div class="ct-name">Spirit</div></div>
     </div>
     <div class="scroll-area">
+      <!-- SURFACED TASKS (hidden until tasks exist) -->
+      <div id="surfaced-tasks-section" class="surfaced-tasks" style="display:none;">
+        <div class="section-label">Surfaced for Today</div>
+        <div id="surfaced-tasks-list"></div>
+        <div class="surfaced-see-all" id="see-all-tasks-link" style="display:none;" onclick="showAllTasks()">See all tasks →</div>
+      </div>
       <div class="calendar-wrap">
         <div class="cal-header">
           <div class="cal-month" id="cal-month-label">March 2026</div>
@@ -873,6 +939,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <div id="planets-list"></div>
       </div>
     </div>
+    <div id="task-fab" onclick="openTaskCreation()" title="Add task">+</div>
   </div>
 
   <!-- SCREEN: GUIDE -->
@@ -972,6 +1039,86 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
           <p>The most well-known is <strong>Mercury Retrograde</strong>, which occurs 3–4 times per year for about three weeks each time.</p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- TASK CREATION MODAL -->
+  <div id="task-modal-overlay" onclick="closeTaskModal()"></div>
+  <div id="task-modal">
+    <div class="task-modal-handle"></div>
+    <div class="task-modal-header">
+      <div class="task-modal-title" id="task-modal-title">Add a task</div>
+      <div class="task-modal-close" onclick="closeTaskModal()">×</div>
+    </div>
+    <div class="task-step-dots" id="task-step-dots">
+      <div class="task-step-dot active"></div>
+      <div class="task-step-dot"></div>
+      <div class="task-step-dot"></div>
+      <div class="task-step-dot"></div>
+      <div class="task-step-dot"></div>
+    </div>
+    <div class="task-modal-body">
+      <!-- Step 1: Name -->
+      <div class="task-modal-step active" id="task-step-1">
+        <div class="task-step-label">What needs doing?</div>
+        <input class="task-name-input" id="task-name-input" type="text" placeholder="Name this task…" maxlength="120" autocomplete="off" autocorrect="on">
+      </div>
+      <!-- Step 2: Deadline -->
+      <div class="task-modal-step" id="task-step-2">
+        <div class="task-step-label">Does this have a deadline?</div>
+        <input class="task-date-input" id="task-deadline-input" type="date">
+        <div class="task-skip-btn" onclick="taskSkipDeadline()">No deadline — skip</div>
+      </div>
+      <!-- Step 3: Repeating -->
+      <div class="task-modal-step" id="task-step-3">
+        <div class="task-step-label">Does this repeat?</div>
+        <div class="repeat-options">
+          <div class="repeat-option selected" data-val="none" onclick="selectRepeat(this)">Doesn't repeat</div>
+          <div class="repeat-option" data-val="daily" onclick="selectRepeat(this)">Every day</div>
+          <div class="repeat-option" data-val="weekly" onclick="selectRepeat(this)">Every week</div>
+          <div class="repeat-option" data-val="biweekly" onclick="selectRepeat(this)">Every two weeks</div>
+          <div class="repeat-option" data-val="monthly" onclick="selectRepeat(this)">Every month</div>
+        </div>
+      </div>
+      <!-- Step 4: Tag review -->
+      <div class="task-modal-step" id="task-step-4">
+        <div class="task-step-label">Here's how I read this task</div>
+        <div class="tag-auto-note">Adjust anything that doesn't feel right.</div>
+        <div id="task-conflict-warn" class="task-conflict-warn" style="display:none;"></div>
+        <div class="tag-field-label">Task type</div>
+        <select class="tag-select" id="tag-type">
+          <option value="creative">Creative</option>
+          <option value="analytical">Analytical</option>
+          <option value="communicative">Communicative</option>
+          <option value="administrative">Administrative</option>
+          <option value="physical">Physical</option>
+          <option value="reflective">Reflective</option>
+        </select>
+        <div class="tag-field-label">Energy required</div>
+        <select class="tag-select" id="tag-energy">
+          <option value="low">Low</option>
+          <option value="focused">Focused</option>
+          <option value="deep-work">Deep Work</option>
+        </select>
+        <div class="tag-field-label">Emotional weight</div>
+        <select class="tag-select" id="tag-weight">
+          <option value="light">Light</option>
+          <option value="moderate">Moderate</option>
+          <option value="heavy">Heavy</option>
+        </select>
+      </div>
+      <!-- Step 5: Confirm -->
+      <div class="task-modal-step" id="task-step-5">
+        <div class="task-step-label">Ready to save</div>
+        <div class="task-confirm-card">
+          <div class="task-confirm-title" id="confirm-title"></div>
+          <div class="task-confirm-tags" id="confirm-tags"></div>
+        </div>
+      </div>
+    </div>
+    <div class="task-btn-row">
+      <div class="task-btn task-btn-ghost" id="task-back-btn" onclick="taskBack()" style="display:none;">Back</div>
+      <div class="task-btn task-btn-primary" id="task-next-btn" onclick="taskNext()">Next</div>
     </div>
   </div>
 
@@ -2165,14 +2312,14 @@ const OB_RENDERERS={
             <div class="ob-toggle-label">Task Reminders</div>
             <div class="ob-toggle-desc">Alerts the evening before and morning of deadlines</div>
           </div>
-          <label class="ob-toggle"><input type="checkbox"${obData.notifTasks?' checked':''} onchange="obData.notifTasks=this.checked"><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></label>
+          <label class="ob-toggle"><input type="checkbox"${obData.notifTasks?' checked':''} onchange="obData.notifTasks=this.checked"><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></div></label>
         </div>
         <div class="ob-toggle-row">
           <div class="ob-toggle-info">
             <div class="ob-toggle-label">Planetary Events</div>
             <div class="ob-toggle-desc">Notable transits, Moon phase changes, retrogrades</div>
           </div>
-          <label class="ob-toggle"><input type="checkbox"${obData.notifPlanetary?' checked':''} onchange="obData.notifPlanetary=this.checked"><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></label>
+          <label class="ob-toggle"><input type="checkbox"${obData.notifPlanetary?' checked':''} onchange="obData.notifPlanetary=this.checked"><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></div></label>
         </div>
       </div>
     </div>`,
@@ -2371,6 +2518,391 @@ document.getElementById('bottom-sheet').addEventListener('touchstart',e=>{sheetS
 document.getElementById('bottom-sheet').addEventListener('touchend',e=>{if(e.changedTouches[0].clientY-sheetStartY>60)closeSheet();},{passive:true});
 
 // ═══════════════════════════════════════════════════════
+// TASK SYSTEM
+// ═══════════════════════════════════════════════════════
+
+// ── Storage helpers ───────────────────────────────────
+function loadTasks(){
+  try{return JSON.parse(localStorage.getItem('celestial_tasks')||'[]');}
+  catch(e){return[];}
+}
+function saveTasks(tasks){localStorage.setItem('celestial_tasks',JSON.stringify(tasks));}
+function addTask(task){const t=loadTasks();t.push(task);saveTasks(t);}
+function toggleTaskComplete(id){
+  const tasks=loadTasks();
+  const t=tasks.find(x=>x.id===id);
+  if(t){t.completed=!t.completed;t.completedDate=t.completed?new Date().toISOString().split('T')[0]:null;}
+  saveTasks(tasks);
+  renderSurfacedTasks();
+}
+
+// ── Keyword heuristic ─────────────────────────────────
+function keywordHeuristic(title,deadline){
+  const s=title.toLowerCase();
+  const types={
+    creative:     ['write','draft','design','draw','paint','create','compose','brainstorm','sketch','build','illustrate','craft','film','record','produce','edit video','animate'],
+    communicative:['call','email','message','meet','text','reply','respond','reach out','contact','discuss','announce','pitch','present','send','follow up','check in','chat','interview','negotiate'],
+    analytical:   ['review','audit','analyze','analyse','plan','research','calculate','assess','evaluate','compare','report','track','measure','budget','figure out','investigate','study','test'],
+    administrative:['file','organize','schedule','book','register','submit','update','renew','pay','sign','order','cancel','set up','arrange','invoice','apply','fill out','complete form'],
+    physical:     ['exercise','run','walk','gym','clean','move','pack','cook','prepare','shop','drive','pick up','drop off','fix','repair','build','install','set up'],
+    reflective:   ['journal','meditate','reflect','think','consider','pray','rest','read','learn','explore','visualize','plan life','vision'],
+  };
+  let taskType='administrative';
+  for(const[type,words]of Object.entries(types)){
+    if(words.some(w=>s.includes(w))){taskType=type;break;}
+  }
+  let energyRequired='focused';
+  if(['quick','simple','easy','brief','short','small','minor'].some(w=>s.includes(w)))energyRequired='low';
+  if(['deep','intensive','complex','comprehensive','major','big','detailed','thorough'].some(w=>s.includes(w)))energyRequired='deep-work';
+  let emotionalWeight='light';
+  if(['important','difficult','challenging','hard','serious','dread','anxious','nervous'].some(w=>s.includes(w)))emotionalWeight='moderate';
+  if(['urgent','overdue','must','crucial','critical','essential','deadline'].some(w=>s.includes(w)))emotionalWeight='heavy';
+  if(deadline){
+    const daysUntil=(new Date(deadline+' 00:00:00')-new Date())/(86400000);
+    if(daysUntil<=1)emotionalWeight='heavy';
+    else if(daysUntil<=3&&emotionalWeight==='light')emotionalWeight='moderate';
+  }
+  return{taskType,energyRequired,emotionalWeight};
+}
+
+// ── Cycle phase ───────────────────────────────────────
+function getCyclePhase(){
+  try{
+    const c=JSON.parse(localStorage.getItem('celestial_cycle')||'null');
+    if(!c||!c.avgLength||!c.lastStart)return null;
+    const dayOfCycle=Math.floor((Date.now()-new Date(c.lastStart+' 00:00:00'))/(86400000))%Math.max(1,c.avgLength);
+    if(dayOfCycle<5)return'menstrual';
+    if(dayOfCycle<13)return'follicular';
+    if(dayOfCycle<17)return'ovulatory';
+    return'luteal';
+  }catch(e){return null;}
+}
+
+// ── Surfacing algorithm ───────────────────────────────
+function surfaceTasks(){
+  const tasks=loadTasks();
+  if(!tasks.length)return[];
+  const loc=JSON.parse(localStorage.getItem('celestial_loc')||'null');
+  const now=new Date();
+  const todayStr=now.toISOString().split('T')[0];
+  let skyData=null;
+  if(loc){
+    const tzOff=getTzOffset(loc.timezone,now);
+    skyData=calculate(now,tzOff,{lat:loc.lat,lon:loc.lon},true);
+  }
+  const catScores=skyData?[0,1,2,3].map(c=>scoreDay(skyData,c)):[0,0,0,0];
+  const phase=skyData?skyData.phase:0.5;
+  const cyclePhase=getCyclePhase();
+  const typeToCategory={creative:3,analytical:2,communicative:1,administrative:0,physical:2,reflective:3};
+  // catScore values: 0=neutral,1=slight,2=favorable,3=optimal,4=caution,5=challenging
+  const catMap={0:0,1:1,2:2,3:3,4:-1,5:-2};
+  return tasks
+    .filter(t=>!(t.completed&&t.completedDate===todayStr)&&!t.completed)
+    .map(t=>{
+      let score=0;
+      const cat=typeToCategory[t.taskType]??0;
+      const cs=catScores[cat];
+      score+=catMap[cs]??0;
+      // Energy vs day vitality (Mind&Body as proxy)
+      const mindScore=catScores[2];
+      const dayEnergy=mindScore>=2?'high':mindScore>=1?'medium':'low';
+      if(t.energyRequired==='low')score+=1;
+      else if(t.energyRequired==='focused'&&dayEnergy!=='low')score+=1;
+      else if(t.energyRequired==='deep-work')score+=dayEnergy==='high'?2:-1;
+      // Emotional weight vs moon
+      const isNewMoon=phase<0.0625||phase>0.9375;
+      const isFullMoon=phase>0.4375&&phase<0.5625;
+      if(t.emotionalWeight==='heavy'&&isNewMoon)score+=1;
+      if(t.emotionalWeight==='heavy'&&isFullMoon)score-=1;
+      if(t.emotionalWeight==='light')score+=0.5;
+      // Cycle phase
+      if(cyclePhase){
+        if(cyclePhase==='menstrual'){if(t.emotionalWeight==='heavy')score-=1;if(t.taskType==='reflective')score+=1;}
+        else if(cyclePhase==='follicular')score+=0.5;
+        else if(cyclePhase==='ovulatory'){if(['creative','communicative'].includes(t.taskType))score+=1;}
+        else if(cyclePhase==='luteal'){if(['analytical','reflective'].includes(t.taskType))score+=0.5;if(t.emotionalWeight==='heavy')score-=0.5;}
+      }
+      // Deadline urgency
+      if(t.deadline){
+        const daysUntil=Math.floor((new Date(t.deadline+' 00:00:00')-new Date(todayStr+' 00:00:00'))/(86400000));
+        if(daysUntil<0)score+=4;
+        else if(daysUntil===0)score+=3;
+        else if(daysUntil===1)score+=2;
+        else if(daysUntil<=3)score+=1;
+      }
+      return{task:t,score,catScore:cs};
+    })
+    .sort((a,b)=>b.score-a.score);
+}
+
+function getSurfaceReason(task,catScore){
+  if(task.deadline){
+    const daysUntil=Math.floor((new Date(task.deadline+' 00:00:00')-new Date())/(86400000));
+    if(daysUntil<0)return'This task is overdue.';
+    if(daysUntil===0)return'Due today — now is the moment.';
+    if(daysUntil===1)return'Your deadline arrives tomorrow.';
+    if(daysUntil<=3)return'Deadline approaching — good to move on this soon.';
+  }
+  const reasons={
+    creative:{
+      3:'The sky opens creative channels today.',
+      2:'Good conditions for imaginative work.',
+      1:'A quiet window for creative exploration.',
+      0:'A neutral day — create on your own terms.',
+      [-1]:'Demanding conditions; keep creative work gentle today.',
+      [-2]:'A difficult day; the creative work can wait.',
+    },
+    communicative:{
+      3:'Mercury aligns well for clear, effective exchange today.',
+      2:'Favorable conditions for important conversations.',
+      1:'A decent window for outreach and connection.',
+      0:'Reach out — the sky is quiet and open.',
+      [-1]:'Exercise care in communications today; tensions may run high.',
+      [-2]:'Approach conversations gently; the sky is sensitive.',
+    },
+    analytical:{
+      3:'The mind is sharpened today — ideal for deep analysis.',
+      2:'Good conditions for focused, methodical thinking.',
+      1:'A passable window for review and research.',
+      0:'A solid day for methodical work.',
+      [-1]:'Caution with high-stakes analysis; revisit when the sky clears.',
+      [-2]:'A difficult day for decisions. Defer what you can.',
+    },
+    administrative:{
+      3:'Productive energy for clearing practical tasks today.',
+      2:'Good conditions for getting organized.',
+      1:'Manageable energy for routine admin.',
+      0:'A workable day for practical matters.',
+      [-1]:'Tread carefully with contracts and commitments today.',
+      [-2]:'A difficult day for administrative decisions. Pause if you can.',
+    },
+    physical:{
+      3:'Strong, vital energy today — move while it\'s here.',
+      2:'Good conditions for physical effort.',
+      1:'Moderate energy for movement and activity.',
+      0:'A neutral day — move at your own pace.',
+      [-1]:'Take care with your body today; rest may serve better.',
+      [-2]:'A day to be gentle with yourself physically.',
+    },
+    reflective:{
+      3:'The spirit is receptive today — ideal for inner work.',
+      2:'Good conditions for quiet reflection.',
+      1:'A decent day for journaling or stillness.',
+      0:'A calm day — good for turning inward.',
+      [-1]:'Outer noise may crowd the inner. Seek stillness where you can.',
+      [-2]:'A challenging day emotionally. Gentleness comes first.',
+    },
+  };
+  const key=catScore>=3?3:catScore>=2?2:catScore>=1?1:catScore===0?0:catScore===4?-1:-2;
+  return(reasons[task.taskType]||{})[key]||'Surfaced based on today\'s conditions.';
+}
+
+// ── Render surfaced tasks ─────────────────────────────
+function renderSurfacedTasks(){
+  const section=document.getElementById('surfaced-tasks-section');
+  const list=document.getElementById('surfaced-tasks-list');
+  const seeAll=document.getElementById('see-all-tasks-link');
+  const scored=surfaceTasks();
+  if(!scored.length){section.style.display='none';return;}
+  section.style.display='block';
+  const top=scored.slice(0,2);
+  const hasMore=scored.length>2;
+  list.innerHTML=top.map(({task,catScore})=>{
+    const reason=getSurfaceReason(task,catScore);
+    const dlHtml=task.deadline?`<div class="stc-deadline">${escHtml(fmtDeadline(task.deadline))}</div>`:'';
+    return`<div class="surfaced-task-card">
+      <div class="stc-check${task.completed?' done':''}" onclick="toggleTaskComplete('${escHtml(task.id)}');event.stopPropagation();"></div>
+      <div class="stc-body">
+        <div class="stc-title${task.completed?' done':''}">${escHtml(task.title)}</div>
+        ${dlHtml}
+        <div class="stc-reason">${reason}</div>
+      </div>
+    </div>`;
+  }).join('');
+  seeAll.style.display=hasMore?'block':'none';
+}
+
+function fmtDeadline(dateStr){
+  const d=new Date(dateStr+' 00:00:00');
+  const today=new Date();today.setHours(0,0,0,0);
+  const diff=Math.floor((d-today)/(86400000));
+  if(diff<0)return'Overdue';
+  if(diff===0)return'Due today';
+  if(diff===1)return'Due tomorrow';
+  return'Due '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Deadline conflict check ───────────────────────────
+function getDeadlineWarning(deadlineStr){
+  if(!deadlineStr)return null;
+  const loc=JSON.parse(localStorage.getItem('celestial_loc')||'null');
+  if(!loc)return null;
+  try{
+    const d=new Date(deadlineStr+' 12:00:00');
+    const tzOff=getTzOffset(loc.timezone,d);
+    const sky=calculate(d,tzOff,{lat:loc.lat,lon:loc.lon},false);
+    const scores=[0,1,2,3].map(c=>scoreDay(sky,c));
+    const worst=Math.max(...scores);
+    if(worst>=5)return'This deadline falls on a challenging day. You may want to aim to finish a day earlier.';
+    if(worst>=4)return'This deadline falls on a day calling for some caution. Consider finishing early if you can.';
+  }catch(e){}
+  return null;
+}
+
+// ── Task creation flow ────────────────────────────────
+let _taskDraft={title:'',deadline:null,repeating:'none',taskType:'administrative',energyRequired:'focused',emotionalWeight:'light'};
+let _taskStep=1;
+const TASK_STEPS=5;
+const TASK_STEP_TITLES=['Add a task','Set a deadline','Does it repeat?','Here\'s how I read this','Ready to save'];
+
+function openTaskCreation(){
+  _taskDraft={title:'',deadline:null,repeating:'none',taskType:'administrative',energyRequired:'focused',emotionalWeight:'light'};
+  _taskStep=1;
+  document.getElementById('task-name-input').value='';
+  document.getElementById('task-deadline-input').value='';
+  document.querySelectorAll('.repeat-option').forEach(el=>{
+    el.classList.toggle('selected',el.dataset.val==='none');
+  });
+  _showTaskStep(1);
+  document.getElementById('task-modal-overlay').classList.add('open');
+  document.getElementById('task-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('task-name-input').focus(),350);
+}
+
+function closeTaskModal(){
+  document.getElementById('task-modal-overlay').classList.remove('open');
+  document.getElementById('task-modal').classList.remove('open');
+}
+
+function _showTaskStep(n){
+  _taskStep=n;
+  document.querySelectorAll('.task-modal-step').forEach((el,i)=>{
+    el.classList.toggle('active',i+1===n);
+  });
+  // Update step dots
+  document.querySelectorAll('.task-step-dot').forEach((el,i)=>{
+    el.classList.remove('active','done');
+    if(i+1===n)el.classList.add('active');
+    else if(i+1<n)el.classList.add('done');
+  });
+  document.getElementById('task-back-btn').style.display=n>1?'block':'none';
+  document.getElementById('task-next-btn').textContent=n===TASK_STEPS?'Save task':n===4?'Looks right':'Next';
+  document.getElementById('task-modal-title').textContent=TASK_STEP_TITLES[n-1];
+}
+
+function taskNext(){
+  if(_taskStep===1){
+    const name=document.getElementById('task-name-input').value.trim();
+    if(!name){document.getElementById('task-name-input').focus();return;}
+    _taskDraft.title=name;
+    _showTaskStep(2);
+  } else if(_taskStep===2){
+    _taskDraft.deadline=document.getElementById('task-deadline-input').value||null;
+    _showTaskStep(3);
+  } else if(_taskStep===3){
+    _showTaskStep(4);
+    _populateTagReview();
+  } else if(_taskStep===4){
+    _taskDraft.taskType=document.getElementById('tag-type').value;
+    _taskDraft.energyRequired=document.getElementById('tag-energy').value;
+    _taskDraft.emotionalWeight=document.getElementById('tag-weight').value;
+    _showTaskStep(5);
+    _populateConfirm();
+  } else if(_taskStep===5){
+    const task={
+      id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+      title:_taskDraft.title,
+      deadline:_taskDraft.deadline,
+      repeating:_taskDraft.repeating,
+      taskType:_taskDraft.taskType,
+      energyRequired:_taskDraft.energyRequired,
+      emotionalWeight:_taskDraft.emotionalWeight,
+      completed:false,
+      completedDate:null,
+      createdAt:new Date().toISOString(),
+    };
+    addTask(task);
+    closeTaskModal();
+    renderSurfacedTasks();
+  }
+}
+
+function taskBack(){if(_taskStep>1)_showTaskStep(_taskStep-1);}
+
+function taskSkipDeadline(){_taskDraft.deadline=null;_showTaskStep(3);}
+
+function selectRepeat(el){
+  document.querySelectorAll('.repeat-option').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+  _taskDraft.repeating=el.dataset.val;
+}
+
+function _populateTagReview(){
+  const tags=keywordHeuristic(_taskDraft.title,_taskDraft.deadline);
+  document.getElementById('tag-type').value=tags.taskType;
+  document.getElementById('tag-energy').value=tags.energyRequired;
+  document.getElementById('tag-weight').value=tags.emotionalWeight;
+  const warn=getDeadlineWarning(_taskDraft.deadline);
+  const warnEl=document.getElementById('task-conflict-warn');
+  if(warn){warnEl.textContent=warn;warnEl.style.display='block';}
+  else{warnEl.style.display='none';}
+}
+
+function _populateConfirm(){
+  document.getElementById('confirm-title').textContent=_taskDraft.title;
+  const repeatLabels={none:'',daily:'Daily',weekly:'Weekly',biweekly:'Biweekly',monthly:'Monthly'};
+  const energyLabels={'low':'Low energy','focused':'Focused energy','deep-work':'Deep Work'};
+  const weightLabels={light:'Light weight',moderate:'Moderate weight',heavy:'Heavy weight'};
+  const tags=[];
+  if(_taskDraft.deadline)tags.push({label:fmtDeadline(_taskDraft.deadline),cls:'tag-deadline'});
+  if(_taskDraft.repeating&&_taskDraft.repeating!=='none')tags.push({label:repeatLabels[_taskDraft.repeating],cls:''});
+  tags.push({label:_taskDraft.taskType.charAt(0).toUpperCase()+_taskDraft.taskType.slice(1),cls:''});
+  tags.push({label:energyLabels[_taskDraft.energyRequired]||_taskDraft.energyRequired,cls:''});
+  tags.push({label:weightLabels[_taskDraft.emotionalWeight]||_taskDraft.emotionalWeight,cls:''});
+  document.getElementById('confirm-tags').innerHTML=tags.map(t=>`<span class="task-confirm-tag ${t.cls}">${escHtml(t.label)}</span>`).join('');
+}
+
+// ── See all tasks ─────────────────────────────────────
+function showAllTasks(){
+  const tasks=loadTasks();
+  const active=tasks.filter(t=>!t.completed);
+  const done=tasks.filter(t=>t.completed);
+  let html=`<div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:16px;">All Tasks</div>`;
+  if(!active.length&&!done.length){
+    html+=`<div style="color:var(--cream-dim);font-size:13px;">No tasks yet. Tap + to add one.</div>`;
+  }
+  if(active.length){
+    active.forEach(t=>{
+      const dl=t.deadline?`<div style="font-size:11px;color:var(--cream-dim);margin-top:3px;">${fmtDeadline(t.deadline)}</div>`:'';
+      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:flex-start;">
+        <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();" style="margin-top:2px;flex-shrink:0;"></div>
+        <div><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
+      </div>`;
+    });
+  }
+  if(done.length){
+    html+=`<div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-faint);margin-top:16px;margin-bottom:4px;">Completed</div>`;
+    done.forEach(t=>{
+      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:flex-start;">
+        <div class="stc-check done" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();" style="margin-top:2px;flex-shrink:0;"></div>
+        <div><div style="font-size:14px;color:var(--cream-dim);text-decoration:line-through;">${escHtml(t.title)}</div></div>
+      </div>`;
+    });
+  }
+  openSheet(html);
+}
+
+function updateAllTasksSheet(){
+  // Refresh the sheet in place if it's open
+  const sheet=document.getElementById('bottom-sheet');
+  if(sheet.classList.contains('open'))showAllTasks();
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 updateDateTime();
@@ -2378,6 +2910,7 @@ setInterval(updateDateTime,30000);
 updateTodayBanner();
 renderCalendar();
 renderPlanetsStrip();
+renderSurfacedTasks();
 </script>
 </body>
 </html>
