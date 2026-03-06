@@ -610,6 +610,8 @@ body{
 .result-quality{display:inline-flex;align-items:center;gap:4px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
 .rq-optimal{color:#7dcf9e;}.rq-optimal .rq-dot{background:#7dcf9e;}
 .rq-favorable{color:var(--gold);}.rq-favorable .rq-dot{background:var(--gold);}
+.rq-caution{color:#c9a84c;}.rq-caution .rq-dot{background:#c9a84c;}
+.rq-challenging{color:#d47070;}.rq-challenging .rq-dot{background:#d47070;}
 .rq-dot{width:5px;height:5px;border-radius:50%;}
 .result-headline{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:400;color:var(--cream);margin-bottom:5px;line-height:1.3;}
 .result-why{font-size:10px;color:var(--cream-dim);line-height:1.6;}
@@ -636,17 +638,45 @@ body{
 .learn-item-name{font-size:13px;font-weight:400;color:var(--cream);}
 .learn-item-sub{font-size:10px;color:var(--cream-dim);margin-top:2px;}
 .learn-arr{color:var(--gold);font-size:13px;}
-/* ── ONBOARDING ───────────────────────────────────────── */
-#onboarding{position:fixed;inset:0;z-index:500;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 28px;text-align:center;}
+/* ── ONBOARDING (multi-step) ─────────────────────────── */
+#onboarding{position:fixed;inset:0;z-index:500;background:#0a0a0a;display:flex;flex-direction:column;overflow:hidden;}
 #onboarding.hidden{display:none;}
-.ob-star{font-size:36px;margin-bottom:20px;opacity:.85;}
-.ob-title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:300;font-style:italic;color:var(--gold);letter-spacing:.04em;margin-bottom:10px;}
-.ob-sub{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:28px;}
-.ob-divider{width:40px;height:1px;background:var(--border);margin:0 auto 28px;}
-.ob-body{font-size:13px;color:var(--cream-dim);line-height:1.8;max-width:340px;margin-bottom:32px;}
-.ob-body strong{color:var(--cream);font-weight:400;}
-.ob-search-wrap{position:relative;width:100%;max-width:340px;margin-bottom:14px;}
-.ob-search-input{width:100%;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--cream);font-family:'Jost',sans-serif;font-size:14px;font-weight:300;outline:none;text-align:left;}
+.ob-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 8px;flex-shrink:0;}
+.ob-back-btn{background:none;border:none;color:var(--cream-dim);font-size:26px;cursor:pointer;padding:4px 8px;line-height:1;font-family:'Jost',sans-serif;}
+.ob-back-btn:active{color:var(--cream);}
+.ob-skip-btn{background:none;border:none;color:var(--cream-faint);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.1em;cursor:pointer;padding:4px 8px;}
+.ob-skip-btn:active{color:var(--cream-dim);}
+.ob-dots{display:flex;gap:5px;align-items:center;}
+.ob-dot{width:5px;height:5px;border-radius:50%;background:var(--border);transition:all .3s;}
+.ob-dot.done{background:rgba(201,168,76,.4);}
+.ob-dot.active{width:16px;border-radius:3px;background:var(--gold);}
+.ob-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 28px;}
+.ob-footer{flex-shrink:0;padding:16px 28px calc(env(safe-area-inset-bottom,0px) + 20px);}
+/* Welcome */
+.ob-welcome{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px 0 40px;}
+.ob-star{font-size:32px;margin-bottom:24px;opacity:.8;}
+.ob-title{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:300;font-style:italic;color:var(--gold);letter-spacing:.04em;margin-bottom:10px;}
+.ob-sub{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:32px;}
+.ob-divider{width:36px;height:1px;background:var(--border);margin:0 auto 32px;}
+.ob-welcome-body{font-size:14px;color:var(--cream-dim);line-height:1.85;max-width:300px;}
+/* Steps */
+.ob-step{padding:28px 0 120px;}
+.ob-question{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:300;color:var(--cream);line-height:1.2;margin-bottom:10px;}
+.ob-hint{font-size:12px;color:var(--cream-dim);line-height:1.7;margin-bottom:28px;}
+.ob-privacy{display:flex;align-items:flex-start;gap:8px;font-size:10px;color:var(--cream-faint);line-height:1.6;padding:12px 14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border-dim);margin-top:20px;}
+/* Date/time selects */
+.ob-date-row{display:flex;gap:10px;margin-bottom:12px;}
+.ob-select{flex:1;padding:14px 10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--cream);font-family:'Jost',sans-serif;font-size:14px;font-weight:300;outline:none;-webkit-appearance:none;text-align:center;}
+.ob-select:focus{border-color:var(--gold);}
+.ob-select option{background:#1a1a1a;}
+.ob-time-row{display:flex;gap:10px;align-items:center;margin-bottom:16px;}
+.ob-time-sep{color:var(--cream-dim);font-size:20px;font-weight:300;}
+.ob-time-unknown-btn{display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 0;}
+.ob-time-unknown-btn input{accent-color:var(--gold);width:15px;height:15px;cursor:pointer;}
+.ob-time-unknown-label{font-size:12px;color:var(--cream-dim);}
+/* Location */
+.ob-search-wrap{position:relative;margin-bottom:12px;}
+.ob-search-input{width:100%;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--cream);font-family:'Jost',sans-serif;font-size:14px;font-weight:300;outline:none;}
 .ob-search-input:focus{border-color:var(--gold);}
 .ob-search-input::placeholder{color:var(--cream-faint);}
 .ob-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-top:6px;overflow:hidden;z-index:510;box-shadow:0 12px 32px rgba(0,0,0,.5);}
@@ -654,19 +684,69 @@ body{
 .ob-option:last-child{border-bottom:none;}
 .ob-option:active{background:rgba(201,168,76,.08);color:var(--gold);}
 .ob-option-sub{font-size:10px;color:var(--cream-dim);margin-top:2px;}
-.ob-btn{width:100%;max-width:340px;padding:15px;background:var(--gold-glow);border:1px solid var(--gold);border-radius:12px;color:var(--gold);font-family:'Jost',sans-serif;font-size:12px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;margin-bottom:18px;transition:background .2s;}
+.ob-same-loc{display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 0;margin-bottom:8px;}
+.ob-same-loc input{accent-color:var(--gold);width:15px;height:15px;cursor:pointer;}
+.ob-same-loc-label{font-size:13px;color:var(--cream-dim);}
+.ob-selected-loc{font-size:12px;color:#7dcf9e;padding:4px 0 10px;}
+/* Option cards */
+.ob-card-grid{display:flex;flex-direction:column;gap:10px;}
+.ob-card{padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px;cursor:pointer;display:flex;align-items:flex-start;gap:14px;transition:border-color .15s,background .15s;}
+.ob-card:active{background:var(--surface2);}
+.ob-card.selected{border-color:var(--gold);background:rgba(201,168,76,.06);}
+.ob-card-icon{font-size:20px;flex-shrink:0;margin-top:2px;}
+.ob-card-label{font-size:14px;color:var(--cream);margin-bottom:3px;}
+.ob-card-desc{font-size:11px;color:var(--cream-dim);line-height:1.5;}
+.ob-card-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ob-card-2{padding:18px 12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;cursor:pointer;text-align:center;transition:border-color .15s,background .15s;}
+.ob-card-2:active{background:var(--surface2);}
+.ob-card-2.selected{border-color:var(--gold);background:rgba(201,168,76,.06);}
+.ob-card-2-icon{font-size:22px;margin-bottom:8px;}
+.ob-card-2-label{font-size:12px;color:var(--cream);line-height:1.4;}
+/* Textarea */
+.ob-textarea{width:100%;min-height:120px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;color:var(--cream);font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;font-style:italic;line-height:1.6;outline:none;resize:none;box-sizing:border-box;}
+.ob-textarea:focus{border-color:var(--gold);}
+.ob-textarea::placeholder{color:var(--cream-faint);font-style:italic;}
+/* Cycle */
+.ob-cycle-field{margin-bottom:20px;}
+.ob-field-label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cream-dim);margin-bottom:8px;}
+.ob-number-input{width:100px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--cream);font-family:'Jost',sans-serif;font-size:18px;outline:none;text-align:center;}
+.ob-number-input:focus{border-color:var(--gold);}
+/* Toggles */
+.ob-toggle-list{display:flex;flex-direction:column;}
+.ob-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--border-dim);}
+.ob-toggle-row:last-child{border-bottom:none;}
+.ob-toggle-info{flex:1;padding-right:16px;}
+.ob-toggle-label{font-size:14px;color:var(--cream);margin-bottom:3px;}
+.ob-toggle-desc{font-size:11px;color:var(--cream-dim);line-height:1.5;}
+.ob-toggle{position:relative;width:44px;height:26px;flex-shrink:0;}
+.ob-toggle input{opacity:0;width:0;height:0;position:absolute;}
+.ob-toggle-track{position:absolute;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:13px;cursor:pointer;transition:background .2s,border-color .2s;}
+.ob-toggle input:checked~.ob-toggle-track{background:rgba(201,168,76,.25);border-color:var(--gold);}
+.ob-toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--border);border-radius:50%;transition:all .2s;pointer-events:none;}
+.ob-toggle input:checked~.ob-toggle-track .ob-toggle-thumb{background:var(--gold);transform:translateX(18px);}
+.ob-time-row-small{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.ob-time-input{padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--cream);font-family:'Jost',sans-serif;font-size:12px;outline:none;width:80px;text-align:center;}
+.ob-time-input:focus{border-color:var(--gold);}
+/* CTA */
+.ob-btn{display:block;width:100%;padding:16px;background:var(--gold-glow);border:1px solid var(--gold);border-radius:14px;color:var(--gold);font-family:'Jost',sans-serif;font-size:12px;font-weight:400;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;transition:background .2s,opacity .2s;text-align:center;}
 .ob-btn:active{background:rgba(201,168,76,.2);}
-.ob-skip{font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.08em;padding:6px;border-bottom:1px solid var(--cream-faint);}
-.ob-skip:active{color:var(--cream-dim);}
-/* Skip confirmation popup */
-#ob-confirm{position:fixed;inset:0;z-index:520;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:28px;}
-#ob-confirm.hidden{display:none;}
-.ob-confirm-box{background:var(--surface2);border:1px solid var(--border);border-radius:18px;padding:28px 24px;max-width:320px;width:100%;text-align:center;}
-.ob-confirm-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:12px;line-height:1.3;}
-.ob-confirm-body{font-size:12px;color:var(--cream-dim);line-height:1.7;margin-bottom:24px;}
-.ob-confirm-btns{display:flex;flex-direction:column;gap:10px;}
-.ob-confirm-enter{padding:13px;background:var(--gold-glow);border:1px solid var(--gold);border-radius:10px;color:var(--gold);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;}
-.ob-confirm-skip{padding:10px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--cream-dim);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer;}
+.ob-btn[disabled],.ob-btn.disabled{opacity:.32;cursor:default;pointer-events:none;}
+.ob-btn-solid{background:var(--gold);color:#0a0a0a;border:none;}
+.ob-btn-solid:active{opacity:.85;}
+/* Info box */
+.ob-info-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 18px;margin-top:8px;}
+.ob-info-icon{font-size:26px;margin-bottom:12px;text-align:center;}
+.ob-info-text{font-size:13px;color:var(--cream-dim);line-height:1.75;}
+/* Complete */
+.ob-complete{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px 0 80px;}
+.ob-complete-star{font-size:36px;margin-bottom:20px;}
+.ob-complete-title{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;font-style:italic;color:var(--gold);margin-bottom:12px;}
+.ob-complete-body{font-size:13px;color:var(--cream-dim);line-height:1.8;max-width:280px;margin-bottom:28px;}
+.ob-trial-box{background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:22px 18px;width:100%;text-align:left;margin-bottom:24px;}
+.ob-trial-price{font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--gold);font-weight:300;line-height:1;text-align:center;margin-bottom:4px;}
+.ob-trial-period{font-size:11px;color:var(--cream-dim);letter-spacing:.1em;text-align:center;margin-bottom:18px;}
+.ob-trial-feature{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:var(--cream-dim);line-height:1.6;margin-bottom:6px;}
+.ob-trial-dot{color:var(--gold);font-size:8px;margin-top:5px;flex-shrink:0;}
 /* ── TOUR PROMPT ─────────────────────────────── */
 #tour-prompt{position:fixed;inset:0;z-index:530;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:24px;}
 #tour-prompt.hidden{display:none;}
@@ -707,31 +787,15 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <body>
 <div id="app">
 
-  <!-- ONBOARDING OVERLAY -->
+  <!-- ONBOARDING (multi-step) -->
   <div id="onboarding" class="hidden">
-    <div class="ob-star">✦</div>
-    <div class="ob-title">Celestial</div>
-    <div class="ob-sub">Astrological Timing</div>
-    <div class="ob-divider"></div>
-    <p class="ob-body">To calculate <strong>house positions</strong> — the personal layer of your chart that shows which areas of your life each planet is currently activating — Celestial needs to know where you are looking at the sky from.<br><br>Enter any city to get started. You can change this anytime.</p>
-    <div class="ob-search-wrap">
-      <input id="ob-input" class="ob-search-input" type="text" placeholder="Search city or town…" autocomplete="off" oninput="onObInput(this.value)">
-      <div class="ob-dropdown" id="ob-dropdown" style="display:none;"></div>
+    <div class="ob-nav" id="ob-nav">
+      <button class="ob-back-btn" id="ob-back-btn" onclick="obGoBack()">‹</button>
+      <div class="ob-dots" id="ob-dots"></div>
+      <button class="ob-skip-btn" id="ob-skip-btn" onclick="obSkipStep()">Skip</button>
     </div>
-    <button class="ob-btn" id="ob-btn" onclick="obConfirmLocation()" disabled style="opacity:.45;cursor:default;">Set My Location</button>
-    <span class="ob-skip" onclick="obSkip()">Skip for now</span>
-  </div>
-
-  <!-- SKIP CONFIRMATION -->
-  <div id="ob-confirm" class="hidden">
-    <div class="ob-confirm-box">
-      <div class="ob-confirm-title">Continue without a location?</div>
-      <div class="ob-confirm-body">House positions won't be calculated, so planetary readings will be general rather than specific to where you are. You can always add your location later via the 📍 icon.</div>
-      <div class="ob-confirm-btns">
-        <button class="ob-confirm-enter" onclick="obBackToSearch()">Enter My Location</button>
-        <button class="ob-confirm-skip" onclick="obDismiss()">Continue Anyway</button>
-      </div>
-    </div>
+    <div class="ob-content" id="ob-content"></div>
+    <div class="ob-footer" id="ob-footer"></div>
   </div>
 
   <!-- TOUR PROMPT -->
@@ -1113,18 +1177,86 @@ function buildAspectDescription(asp,positions){
   return main+signLine;
 }
 
-const RESULT_WINDOWS=[
-  {month:'MAR',day:6,range:'— Mar 7',quality:'optimal',headline:'Venus enters Aries · Jupiter sextile Sun',why:'<strong>Venus</strong> moves into bold Aries while <strong>Jupiter</strong> expands what it touches — ideal for confident financial action and launching new ventures.'},
-  {month:'MAR',day:17,range:'— Mar 19',quality:'optimal',headline:'Mercury trine Saturn · Moon in Capricorn',why:'<strong>Mercury</strong> in harmony with <strong>Saturn</strong> creates ideal conditions for signing agreements. <strong>Capricorn Moon</strong> adds pragmatic focus.'},
-  {month:'MAR',day:27,range:'— Mar 29',quality:'favorable',headline:'New Moon in Aries · Mars direct',why:'<strong>New Moons</strong> are seeding energy — ideal for initiating. <strong>Mars</strong> adds decisive, forward momentum.'},
-  {month:'APR',day:4,range:'— Apr 5',quality:'optimal',headline:'Venus trine Jupiter · Moon in Taurus',why:'<strong>Venus</strong> and <strong>Jupiter</strong> in trine is one of the most classically favorable aspects for financial decisions. The <strong>Taurus Moon</strong> grounds energy.'},
-  {month:'APR',day:14,range:'— Apr 16',quality:'favorable',headline:'Sun trine Saturn · Mercury sextile Venus',why:'<strong>Sun</strong> trine <strong>Saturn</strong> supports long-view decisions. <strong>Mercury</strong> sextile <strong>Venus</strong> smooths contract negotiations.'},
-];
-const RESULT_CAUTION=[
-  {month:'MAR',day:12,range:'— Mar 13',quality:'challenging',headline:'Mercury Retrograde · Venus square Pluto',why:'<strong>Mercury Retrograde</strong> makes this particularly unfavorable for contracts. <strong>Venus</strong> square <strong>Pluto</strong> brings power struggles.'},
-  {month:'MAR',day:22,range:'— Mar 23',quality:'challenging',headline:'Mars opposite Saturn · Sun square Uranus',why:'<strong>Mars</strong> opposite <strong>Saturn</strong> creates blocked energy. <strong>Sun</strong> square <strong>Uranus</strong> brings sudden disruptions.'},
-  {month:'APR',day:8,range:'— Apr 8',quality:'caution',headline:'Void-of-course Moon · Mars square Neptune',why:'The <strong>Moon is void-of-course</strong> — new initiatives tend to yield unpredictable results. <strong>Mars</strong> square <strong>Neptune</strong> clouds judgment.'},
-];
+// ── SUBCATEGORY LENS ─────────────────────────────────────
+// Maps each subcategory string to a short action phrase used to frame
+// planetary descriptions so they match what the user is actually doing.
+const SUBCAT_LENS={
+  // Finance & Career
+  'Starting or launching a business':'launching something new',
+  'Signing a contract or agreement':'formalizing agreements',
+  'Making a large financial purchase':'making a significant purchase',
+  'Investment or wealth-building decision':'building financial security',
+  'Career move or job change':'making a career move',
+  'Salary or fee negotiation':'negotiating your value',
+  // Communication
+  'Having an important conversation':'having an important conversation',
+  'Forming a new partnership':'forming a new partnership',
+  'Travel planning':'planning your travels',
+  'Conflict resolution':'resolving a conflict',
+  'Public speaking or publishing':'speaking or publishing publicly',
+  'Reconnecting with someone':'reaching out to reconnect',
+  // Mind & Body
+  'Starting a health or fitness routine':'starting a health routine',
+  'Dietary or lifestyle change':'making a lifestyle change',
+  'Learning a new skill':'learning something new',
+  'Mental health support or therapy timing':'seeking mental health support',
+  'Rest and recovery':'resting and recovering',
+  'Building a new habit':'building a new habit',
+  // Spirit
+  'Beginning a spiritual practice':'beginning a spiritual practice',
+  'Creative project launch':'launching a creative project',
+  'Making an intuition-led decision':'trusting your intuition',
+  'Shadow work or inner transformation':'deep inner transformation',
+  'Ritual or ceremonial timing':'ritual and ceremony',
+  'Seeking clarity on life direction':'seeking clarity on your path',
+  // Fallbacks
+  'General':'this type of action',
+};
+// ── PLANET ASPECT TEMPLATES ───────────────────────────────
+// Per-planet positive/negative sentence templates.
+// {lens} is replaced with the subcat lens phrase.
+const PLANET_ASP={
+  Mercury:{
+    pos:'<strong>Mercury</strong> in a harmonious aspect brings clarity of thought and smooth expression — ideal energy for {lens}.',
+    neg:'<strong>Mercury</strong> under tension can create miscommunication and mental fog — take extra care with {lens}.',
+  },
+  Moon:{
+    pos:'The <strong>Moon</strong> in a favorable configuration brings emotional attunement and receptivity — a naturally open window for {lens}.',
+    neg:'The <strong>Moon</strong> under stress heightens sensitivity and emotional reactivity — tread gently when approaching {lens}.',
+  },
+  Venus:{
+    pos:'<strong>Venus</strong> in harmony brings warmth, goodwill, and genuine openness — supportive conditions for {lens}.',
+    neg:'<strong>Venus</strong> under tension can stir friction around values and connection — approach {lens} with patience.',
+  },
+  Mars:{
+    pos:'<strong>Mars</strong> in a flowing aspect lends courage and decisive forward energy — useful momentum for {lens}.',
+    neg:'<strong>Mars</strong> under stress increases reactivity — take a measured, deliberate approach to {lens}.',
+  },
+  Jupiter:{
+    pos:'<strong>Jupiter</strong> in harmony amplifies opportunity and optimism — an expansive, welcoming backdrop for {lens}.',
+    neg:'<strong>Jupiter</strong> under tension can encourage overreach or unrealistic expectations around {lens}.',
+  },
+  Saturn:{
+    pos:'<strong>Saturn</strong> in harmony brings structure and staying power — strong, reliable support for {lens}.',
+    neg:'<strong>Saturn</strong> under stress creates resistance and obstacles — persistence and patience are key for {lens}.',
+  },
+  Sun:{
+    pos:'The <strong>Sun</strong> in a supportive configuration brings vitality and clarity of purpose — a confident backdrop for {lens}.',
+    neg:'The <strong>Sun</strong> under tension can bring ego clashes and visibility challenges — stay grounded with {lens}.',
+  },
+  Neptune:{
+    pos:'<strong>Neptune</strong> in harmony deepens intuition and emotional attunement — a beautiful, subtle support for {lens}.',
+    neg:'<strong>Neptune</strong> under stress can blur boundaries and cloud discernment — ground yourself before {lens}.',
+  },
+  Chiron:{
+    pos:'<strong>Chiron</strong> in harmony supports healing and authentic mentorship — a meaningful window for {lens}.',
+    neg:'<strong>Chiron</strong> under stress may surface old wounds — be compassionate with yourself during {lens}.',
+  },
+  'North Node':{
+    pos:'The <strong>North Node</strong> in a flowing aspect aligns this action with your soul\'s direction — a karmic green light for {lens}.',
+    neg:'The <strong>North Node</strong> under tension signals a growth edge — {lens} may require extra courage now.',
+  },
+};
 const CURRENT_PICTURE={0:'The current sky presents a <strong>mixed but broadly supportive</strong> picture for financial decisions. <strong>Jupiter in Cancer</strong> amplifies opportunities in emotionally-aligned ventures. <strong>Saturn in Aries</strong> rewards disciplined, courageous financial action. However, with <strong>Mercury retrograde</strong>, avoid finalizing major contracts — review and revise instead.',1:'<strong>Mercury retrograde in Pisces</strong> currently makes this a time for review over initiation in communication. However, the retrograde period supports reconnecting and renegotiating. <strong>Mars in Pisces</strong> communicates with emotional intelligence.',2:'The current sky strongly supports <strong>Mind & Body</strong> work. <strong>Pisces energy</strong> is ideal for rest, healing, and imaginative learning. <strong>Chiron in Aries</strong> supports healing around self-assertion and identity.',3:'For spiritual work, the current sky is <strong>exceptional</strong>. <strong>Neptune entering Aries</strong> begins a new spiritual era. Combined with the current <strong>Pisces emphasis</strong>, meditation, prayer, and creative spiritual practice are profoundly supported.'};
 // ═══════════════════════════════════════════════════════
 // STATE
@@ -1342,30 +1474,93 @@ function showResults(intent){
   const sub=guideState.subcat||'General';
   const intentLabel=intent==='windows'?'Upcoming Favorable Windows':intent==='caution'?'Dates to Approach with Caution':'Current Planetary Picture';
   document.getElementById('results-breadcrumb').textContent=catName+'  →  '+sub+'  →  '+intentLabel;
-  if(intent==='windows'){document.getElementById('results-title').textContent='Optimal timing for: '+sub;renderWindowResults(RESULT_WINDOWS);}
-  else if(intent==='caution'){document.getElementById('results-title').textContent='Challenging windows: '+sub;renderWindowResults(RESULT_CAUTION);}
+  if(intent==='windows'){document.getElementById('results-title').textContent='Optimal timing for: '+sub;renderWindowResults(true);}
+  else if(intent==='caution'){document.getElementById('results-title').textContent='Challenging windows: '+sub;renderWindowResults(false);}
   else{document.getElementById('results-title').textContent='The current sky for: '+sub;renderCurrentPicture();}
   document.querySelectorAll('.guide-step-container').forEach(c=>c.style.display='none');
   document.getElementById('guide-results').style.display='flex';
 }
 function showQuickResults(type){
   guideState.cat=0;
-  if(type==='bestdays'){guideState.subcat='General';document.getElementById('results-breadcrumb').textContent='Finance & Career  →  Best Days This Month';document.getElementById('results-title').textContent='Most favorable days this month';renderWindowResults(RESULT_WINDOWS);}
+  if(type==='bestdays'){guideState.subcat='General';document.getElementById('results-breadcrumb').textContent='Finance & Career  →  Best Days This Month';document.getElementById('results-title').textContent='Most favorable days this month';renderWindowResults(true);}
   else{guideState.subcat='Overview';document.getElementById('results-breadcrumb').textContent='Current Sky Overview';document.getElementById('results-title').textContent='What the sky is saying right now';renderCurrentPicture();}
   document.querySelectorAll('.guide-step-container').forEach(c=>c.style.display='none');
   document.getElementById('guide-results').style.display='flex';
 }
-function renderWindowResults(data){
-  const container=document.getElementById('results-list-content');container.innerHTML='';
-  data.forEach(r=>{
-    const isTop=r.quality==='optimal';
-    const qClass=r.quality==='optimal'?'rq-optimal':'rq-favorable';
-    const qLabel=r.quality==='optimal'?'Optimal Window':r.quality==='favorable'?'Favorable':r.quality==='challenging'?'Challenging':'Caution';
-    const dotC=r.quality==='optimal'?'#7dcf9e':r.quality==='challenging'?'#d47070':'var(--gold)';
-    const card=document.createElement('div');card.className='result-card'+(isTop?' top':'');
-    card.innerHTML=`<div class="result-date-col"><div class="result-month">${r.month}</div><div class="result-day">${r.day}</div><div class="result-range">${r.range}</div></div><div class="result-content"><div class="result-quality ${qClass}"><div class="rq-dot" style="background:${dotC}"></div>${qLabel}</div><div class="result-headline">${r.headline}</div><div class="result-why">${r.why}</div></div>`;
-    container.appendChild(card);
-  });
+
+// Dynamically generates window results from live ephemeris, framed for the
+// selected subcategory so descriptions always match what the user is doing.
+function buildWindowData(favorable){
+  const MONTH_ABBR=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const catIdx=guideState.cat||0;
+  const subcatName=guideState.subcat||'General';
+  const lens=SUBCAT_LENS[subcatName]||'this type of action';
+  const catPlanets={0:['Venus','Jupiter','Saturn','Mercury'],1:['Mercury','Venus','Mars','Moon'],2:['Moon','Mercury','Mars','Chiron'],3:['Sun','Jupiter','Neptune','Moon']};
+  const keyPlanets=catPlanets[catIdx]||catPlanets[0];
+  const results=[];
+  const today=new Date();
+  for(let i=1;i<=60&&results.length<6;i++){
+    const date=new Date(today);date.setDate(today.getDate()+i);
+    const sky=getSkyData(date);
+    const score=Ephemeris.scoreDay(sky,catIdx);
+    const isFav=score>=2&&score<=3;
+    const isBad=score>=4;
+    if(favorable&&!isFav)continue;
+    if(!favorable&&!isBad)continue;
+    // Pick top relevant aspects (key-planet aspects, tightest orb, two-key-planet pairs first)
+    const relAsp=sky.aspects
+      .filter(a=>keyPlanets.includes(a.p1)||keyPlanets.includes(a.p2))
+      .sort((a,b)=>{
+        const aBoth=(keyPlanets.includes(a.p1)&&keyPlanets.includes(a.p2))?0:1;
+        const bBoth=(keyPlanets.includes(b.p1)&&keyPlanets.includes(b.p2))?0:1;
+        return aBoth!==bBoth?aBoth-bBoth:a.diff-b.diff;
+      });
+    const top=relAsp[0];
+    const quality=score===3?'optimal':score===2?'favorable':score===4?'caution':'challenging';
+    // Headline: top aspect or lunar phase
+    let headline=top?`${top.p1} ${top.name} ${top.p2}`:`${sky.phaseName} Moon in ${sky.positions['Moon']?.sign||''}`;
+    // Why: planet template framed with lens, plus second aspect if present
+    let why='';
+    if(top){
+      const mainPlanet=keyPlanets.includes(top.p1)?top.p1:top.p2;
+      const tmplSet=PLANET_ASP[mainPlanet];
+      if(tmplSet){
+        const harmony=top.harmony==='positive'?'pos':'neg';
+        why=(tmplSet[harmony]||tmplSet.pos).replace('{lens}',lens);
+      }
+      const sec=relAsp[1];
+      if(sec&&sec!==top){
+        const secPlanet=keyPlanets.includes(sec.p1)?sec.p1:sec.p2;
+        if(sec.harmony==='positive')why+=` <strong>${secPlanet}</strong> also adds supportive energy.`;
+        else if(sec.harmony==='negative')why+=` Watch for <strong>${secPlanet}</strong> adding tension.`;
+      }
+    } else {
+      why=`The sky on this day is broadly ${favorable?'supportive':'challenging'} for ${lens}.`;
+    }
+    results.push({month:MONTH_ABBR[date.getMonth()],day:date.getDate(),quality,headline,why});
+  }
+  return results;
+}
+function renderWindowResults(favorable){
+  const container=document.getElementById('results-list-content');
+  container.innerHTML='<div style="padding:20px 0;text-align:center;color:var(--cream-faint);font-size:12px;">Scanning sky…</div>';
+  // Defer one tick so the "Scanning" message renders before the sync loop runs
+  setTimeout(()=>{
+    const data=buildWindowData(favorable);
+    container.innerHTML='';
+    if(!data.length){
+      container.innerHTML=`<div style="padding:24px 0;text-align:center;color:var(--cream-dim);font-size:13px;">No ${favorable?'favorable':'challenging'} windows found in the next 60 days for this category.</div>`;
+      return;
+    }
+    data.forEach(r=>{
+      const isTop=r.quality==='optimal';
+      const qClass=r.quality==='optimal'?'rq-optimal':r.quality==='favorable'?'rq-favorable':r.quality==='caution'?'rq-caution':'rq-challenging';
+      const qLabel=r.quality==='optimal'?'Optimal Window':r.quality==='favorable'?'Favorable':r.quality==='caution'?'Caution':'Challenging';
+      const card=document.createElement('div');card.className='result-card'+(isTop?' top':'');
+      card.innerHTML=`<div class="result-date-col"><div class="result-month">${r.month}</div><div class="result-day">${r.day}</div></div><div class="result-content"><div class="result-quality ${qClass}"><div class="rq-dot"></div>${qLabel}</div><div class="result-headline">${r.headline}</div><div class="result-why">${r.why}</div></div>`;
+      container.appendChild(card);
+    });
+  },0);
 }
 function renderCurrentPicture(){
   const catIdx=guideState.cat||0;
