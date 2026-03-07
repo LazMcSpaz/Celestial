@@ -825,13 +825,12 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cu-card:active{opacity:.75;}
 .cu-day{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--cream-dim);}
 .cu-date{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--cream);line-height:1;}
-.cu-label{font-size:9px;letter-spacing:.06em;}
-.cu-card.ei-optimal .cu-label{color:#7dcf9e;}
-.cu-card.ei-favorable .cu-label{color:#6db888;}
-.cu-card.ei-slight .cu-label{color:#5aab74;}
-.cu-card.ei-neutral .cu-label{color:var(--cream-dim);}
-.cu-card.ei-caution .cu-label{color:var(--amber-text);}
-.cu-card.ei-challenging .cu-label{color:var(--red-text);}
+.cu-dot{width:7px;height:7px;border-radius:50%;background:var(--border);}
+.cu-card.ei-optimal .cu-dot{background:#7dcf9e;}
+.cu-card.ei-favorable .cu-dot{background:#6db888;}
+.cu-card.ei-slight .cu-dot{background:#5aab74;}
+.cu-card.ei-caution .cu-dot{background:var(--amber-text);}
+.cu-card.ei-challenging .cu-dot{background:var(--red-text);}
 .rx-row{display:flex;align-items:flex-start;gap:11px;padding:10px 0;border-bottom:1px solid var(--border-dim);cursor:pointer;}
 .rx-row:last-child{border-bottom:none;}
 .rx-row:active{opacity:.75;}
@@ -3159,13 +3158,12 @@ function renderComingUp(){
     const bestGood=goodOnes.length?Math.max(...goodOnes):0;
     const rep=worstBad>=4?worstBad:bestGood;
     const cls=SCORE_CLASS_D[rep]||'ei-neutral';
-    const label=SCORE_LABEL_D[rep]||'Neutral';
     const dateNum=d.getDate();
     const dayStr=DAY_ABBR_D[d.getDay()];
     return`<div class="cu-card ${cls}" onclick="openDateSheet(${dateNum},${rep},null,${d.getFullYear()},${d.getMonth()+1})">
       <div class="cu-day">${dayStr}</div>
       <div class="cu-date">${dateNum}</div>
-      <div class="cu-label">${label}</div>
+      <div class="cu-dot"></div>
     </div>`;
   }).join('');
   container.innerHTML=html;
