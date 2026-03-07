@@ -1777,7 +1777,7 @@ function openDateSheet(day,score,sky,yr,mo,cat=0){
   bodyHtml+=`<div style="margin-top:14px;font-size:12px;line-height:1.7;color:var(--cream-dim);">${generateCategoryPicture(sky,cat)}</div>`;
 
   if(rxList.length>0)bodyHtml+=`<div style="margin-top:10px;font-size:11px;color:var(--cream-dim)">Retrograde: ${rxList.join(', ')} — review rather than initiate.</div>`;
-  if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon'].sign} — no major aspects strongly favor or challenge this area today.</div>`;
+  if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon']?.sign??''} — no major aspects strongly favor or challenge this area today.</div>`;
   openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[useMo-1]} ${useYr} · ${CAT_NAMES[cat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div>${houseContextHtml}<div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
 }
 
@@ -3413,11 +3413,12 @@ function generateDailyRead(skyData,catScores){
   }
 
   // 4. Closing guidance
-  const best=catScores.indexOf(Math.max(...catScores));
-  const worst=Math.max(...catScores);
-  if(catScores[best]>=2){
-    sentences.push(CAT_CLOSINGS[best]);
-  } else if(worst>=4){
+  // Find the best *favorable* score (1–3 range only); track worst separately.
+  const bestIdx=catScores.reduce((bi,s,i)=>s>=1&&s<=3&&(bi===-1||s>catScores[bi])?i:bi,-1);
+  const worstVal=Math.max(...catScores);
+  if(bestIdx!==-1&&catScores[bestIdx]>=2){
+    sentences.push(CAT_CLOSINGS[bestIdx]);
+  } else if(worstVal>=4){
     sentences.push('The sky asks for patience and deliberate movement today.');
   } else {
     sentences.push('A quiet day — meet it on its own terms.');
