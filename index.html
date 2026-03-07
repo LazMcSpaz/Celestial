@@ -2645,56 +2645,56 @@ function getSurfaceReason(task,catScore){
   }
   const reasons={
     creative:{
-      3:'The sky opens creative channels today.',
-      2:'Good conditions for imaginative work.',
-      1:'A quiet window for creative exploration.',
+      3:'The sky favors creative work today — let out what has been building.',
+      2:'Good conditions for imaginative work — lean into the flow.',
+      1:'A quiet window for low-stakes creative exploration.',
       0:'A neutral day — create on your own terms.',
-      [-1]:'Demanding conditions; keep creative work gentle today.',
-      [-2]:'A difficult day; the creative work can wait.',
+      [-1]:'Demanding conditions; keep creative work light today.',
+      [-2]:'A difficult day — set the creative work aside if you can.',
     },
     communicative:{
-      3:'Mercury aligns well for clear, effective exchange today.',
-      2:'Favorable conditions for important conversations.',
-      1:'A decent window for outreach and connection.',
+      3:'The sky is well-aligned for clear, effective exchange — an ideal time to reach out.',
+      2:'Favorable conditions for important conversations and outreach.',
+      1:'A decent window for connection — reach out while the sky is open.',
       0:'Reach out — the sky is quiet and open.',
-      [-1]:'Exercise care in communications today; tensions may run high.',
-      [-2]:'Approach conversations gently; the sky is sensitive.',
+      [-1]:'Exercise care in communications today; misunderstandings are more likely.',
+      [-2]:'Approach conversations gently today; the sky is strained.',
     },
     analytical:{
-      3:'The mind is sharpened today — ideal for deep analysis.',
+      3:'The mind is sharpened today — ideal conditions for deep analysis and clear decisions.',
       2:'Good conditions for focused, methodical thinking.',
-      1:'A passable window for review and research.',
+      1:'A workable window for review and research — not peak, but steady.',
       0:'A solid day for methodical work.',
-      [-1]:'Caution with high-stakes analysis; revisit when the sky clears.',
-      [-2]:'A difficult day for decisions. Defer what you can.',
+      [-1]:'Caution with high-stakes decisions today; revisit when the sky clears.',
+      [-2]:'A difficult day for judgment. Defer what you can.',
     },
     administrative:{
-      3:'Productive energy for clearing practical tasks today.',
-      2:'Good conditions for getting organized.',
-      1:'Manageable energy for routine admin.',
+      3:'Strong practical energy today — a good time to clear the backlog and make decisions.',
+      2:'Good conditions for getting organized and making progress.',
+      1:'Manageable energy for routine work — nothing major, but steady.',
       0:'A workable day for practical matters.',
       [-1]:'Tread carefully with contracts and commitments today.',
       [-2]:'A difficult day for administrative decisions. Pause if you can.',
     },
     physical:{
-      3:'Strong, vital energy today — move while it\'s here.',
-      2:'Good conditions for physical effort.',
-      1:'Moderate energy for movement and activity.',
+      3:'Strong, vital energy today — move with intention while it\'s available.',
+      2:'Good conditions for physical effort — the body is willing.',
+      1:'Moderate energy for movement — a walk or gentle practice works well.',
       0:'A neutral day — move at your own pace.',
-      [-1]:'Take care with your body today; rest may serve better.',
-      [-2]:'A day to be gentle with yourself physically.',
+      [-1]:'Take care with your body today; rest may serve better than effort.',
+      [-2]:'A day to be gentle with yourself — recovery over exertion.',
     },
     reflective:{
-      3:'The spirit is receptive today — ideal for inner work.',
-      2:'Good conditions for quiet reflection.',
-      1:'A decent day for journaling or stillness.',
-      0:'A calm day — good for turning inward.',
-      [-1]:'Outer noise may crowd the inner. Seek stillness where you can.',
-      [-2]:'A challenging day emotionally. Gentleness comes first.',
+      3:'The inner channel is wide open today — ideal conditions for journaling and reflection.',
+      2:'Good conditions for quiet inner work.',
+      1:'A decent day for stillness — even a few minutes of journaling counts.',
+      0:'A calm day — a natural window for turning inward.',
+      [-1]:'Outer noise may crowd the inner today. Seek stillness where you can find it.',
+      [-2]:'A challenging day emotionally. Gentleness and self-compassion come first.',
     },
   };
-  const key=catScore>=3?3:catScore>=2?2:catScore>=1?1:catScore===0?0:catScore===4?-1:-2;
-  return(reasons[task.taskType]||{})[key]||'Surfaced based on today\'s conditions.';
+  const key=catScore===5?-2:catScore===4?-1:catScore===3?3:catScore===2?2:catScore===1?1:0;
+  return(reasons[task.taskType]||{})[key]||'Surfaced based on today\'s sky conditions.';
 }
 
 // ── Render surfaced tasks ─────────────────────────────
@@ -2916,6 +2916,11 @@ const MYTH={
   Neptune:'Poseidon',Chiron:'Chiron',
   'North Node':'the Dragon\'s Head','Black Moon Lilith':'Lilith',
 };
+// Returns "Mercury (Hermes)" — planetary name first so it's always clear what body is meant
+function mythLabel(key){
+  const myth=MYTH[key];
+  return (myth&&myth!==key)?`${key} (${myth})`:key;
+}
 
 const MOON_SIGN_DESC={
   Aries:'the impulse to begin',
@@ -2933,25 +2938,25 @@ const MOON_SIGN_DESC={
 };
 
 const MOON_PHASE_QUALITY={
-  'New Moon':       {desc:'A threshold moment — good for setting intention.',energy:'quiet'},
-  'Waxing Crescent':{desc:'Energy is beginning to build.',energy:'building'},
-  'First Quarter':  {desc:'Momentum is rising — push through resistance.',energy:'building'},
-  'Waxing Gibbous': {desc:'Refinement before the peak — focus counts now.',energy:'high'},
-  'Full Moon':      {desc:'The sky is at full expression. Emotions run bright.',energy:'peak'},
-  'Waning Gibbous': {desc:'A time to share and release what is finished.',energy:'releasing'},
-  'Last Quarter':   {desc:'Let go of what no longer serves.',energy:'low'},
-  'Waning Crescent':{desc:'Rest and prepare for the next cycle.',energy:'low'},
+  'New Moon':       {desc:'Set one clear intention — this is the seed moment for the next two weeks.',energy:'quiet'},
+  'Waxing Crescent':{desc:'The cycle gains momentum. Take one concrete step toward what you seeded.',energy:'building'},
+  'First Quarter':  {desc:'Resistance appears here — push through it. The sky rewards decisive action.',energy:'building'},
+  'Waxing Gibbous': {desc:'You\'re approaching the peak. Refine and prepare — the Full Moon will reveal what\'s ready.',energy:'high'},
+  'Full Moon':      {desc:'Maximum illumination. What has been growing is now fully visible — harvest, don\'t plant.',energy:'peak'},
+  'Waning Gibbous': {desc:'The striving phase ends. Share what you\'ve learned and release what is complete.',energy:'releasing'},
+  'Last Quarter':   {desc:'Clear what is finished. Decisions now should reduce, not add.',energy:'low'},
+  'Waning Crescent':{desc:'The sky asks for stillness. Rest, integrate, and prepare the ground for what\'s next.',energy:'low'},
 };
 
 const RETROGRADE_NOTES={
-  Mercury:'Hermes walks backward — words may tangle; revisit rather than initiate.',
-  Venus:  'Aphrodite turns inward — a time to reassess what you value and who you love.',
-  Mars:   'Ares retreats — frustration may simmer; redirect energy inward.',
-  Jupiter:'Zeus reflects — expansion slows; review where growth has been scattered.',
-  Saturn: 'Kronos reconsiders — old structures call for careful revision.',
-  Uranus: 'Ouranos loops back — expect the unexpected to surface from within.',
-  Neptune:'Poseidon recedes — illusions may clarify, or deepen.',
-  Chiron: 'Chiron revisits old wounds — healing asks for patience.',
+  Mercury:'Mercury (Hermes) is retrograde — words tangle and tech misfires; revisit and repair, avoid signing new contracts.',
+  Venus:  'Venus (Aphrodite) is retrograde — old relationships resurface; clarify what you truly value before committing.',
+  Mars:   'Mars (Ares) is retrograde — frustration builds without an outlet; redirect drive into preparation and inner work.',
+  Jupiter:'Jupiter (Zeus) is retrograde — expansion pauses naturally; audit where ambition has outpaced solid foundations.',
+  Saturn: 'Saturn (Kronos) is retrograde — structures are under review; slow down and shore up what matters most.',
+  Uranus: 'Uranus (Ouranos) is retrograde — disruption turns inward; breakthroughs arrive as realizations, not events.',
+  Neptune:'Neptune (Poseidon) is retrograde — a clarifying period; illusions soften and intuition sharpens for those paying attention.',
+  Chiron: 'Chiron is retrograde — an old wound resurfaces asking to be properly tended; honesty with yourself is the medicine.',
 };
 
 const ASPECT_OPEN_POS={
@@ -3000,10 +3005,10 @@ const CYCLE_PHASE_DATA={
 };
 
 const CAT_CLOSINGS=[
-  'The clearest path today runs through <em>finance and practical matters</em>.',
-  'Communication and connection are well-starred today — reach out.',
-  'Mind and body are aligned — tend to your energy and your thinking.',
-  'Spirit and intuition are open — trust what arrives quietly.',
+  'The clearest path today runs through <em>finance and practical decisions</em> — concrete moves carry weight.',
+  'Communication is well-starred today — send the message, make the call, have the conversation.',
+  'Mental clarity is the gift today — write, plan, and solve. Your thinking is working in your favor.',
+  'The intuitive channel is open — pay attention to what you notice, and trust the quiet impressions.',
 ];
 
 // ── Greeting ─────────────────────────────────────────
@@ -3018,7 +3023,7 @@ function generateGreeting(skyData,catScores){
   const pos=skyData.aspects.filter(a=>a.harmony==='positive').sort((a,b)=>a.diff-b.diff);
   if(pos.length){
     const t=pos[0];
-    const m1=MYTH[t.p1]||t.p1,m2=MYTH[t.p2]||t.p2;
+    const m1=mythLabel(t.p1),m2=mythLabel(t.p2);
     const hint=DOMAIN_HINTS[t.p1]||DOMAIN_HINTS[t.p2]||'focused action';
     return`${m1} and ${m2} are aligned — a good day for ${hint}.`;
   }
@@ -3026,12 +3031,12 @@ function generateGreeting(skyData,catScores){
   const neg=skyData.aspects.filter(a=>a.harmony==='negative').sort((a,b)=>a.diff-b.diff);
   if(neg.length){
     const t=neg[0];
-    const m1=MYTH[t.p1]||t.p1,m2=MYTH[t.p2]||t.p2;
+    const m1=mythLabel(t.p1),m2=mythLabel(t.p2);
     return`${m1} and ${m2} are in friction today — move thoughtfully.`;
   }
   // Moon sign fallback
   const moon=skyData.positions['Moon'];
-  if(moon)return`Selene drifts through ${MOON_SIGN_DESC[moon.sign]||moon.sign}.`;
+  if(moon)return`Moon (Selene) drifts through ${MOON_SIGN_DESC[moon.sign]||moon.sign}.`;
   return'The sky is quiet today — a good day to listen.';
 }
 
@@ -3055,7 +3060,7 @@ function generateDailyRead(skyData,catScores){
   if(moon){
     const signDesc=MOON_SIGN_DESC[moon.sign]||moon.sign;
     const phaseNote=phaseData.desc||'';
-    sentences.push(`Selene moves through <em>${signDesc}</em>. ${phaseNote}`);
+    sentences.push(`Moon (Selene) moves through <em>${signDesc}</em>. ${phaseNote}`);
   }
 
   // 3. Retrograde context (one planet max)
@@ -3109,7 +3114,7 @@ function renderLunarSnapshot(skyData){
       <div class="lunar-emoji">${skyData.phaseEmoji}</div>
       <div class="lunar-body">
         <div class="lunar-title">${skyData.phaseName} in ${moon.sign}</div>
-        <div class="lunar-desc">Selene holds the quality of <em>${signDesc}</em>. ${phaseData.desc}</div>
+        <div class="lunar-desc">Moon (Selene) holds the quality of <em>${signDesc}</em>. ${phaseData.desc}</div>
       </div>
     </div>`;
 }
@@ -3124,7 +3129,6 @@ function renderKeyAspect(skyData){
   wrap.style.display='block';
 
   const asp=sorted[0];
-  const m1=MYTH[asp.p1]||asp.p1,m2=MYTH[asp.p2]||asp.p2;
   const isPos=asp.harmony==='positive';
   const dotColor=isPos?'rgba(74,124,89,.75)':'rgba(139,58,58,.75)';
   const desc=buildAspectDescription(asp,skyData.positions);
@@ -3133,7 +3137,7 @@ function renderKeyAspect(skyData){
     <div class="aspect-card">
       <div class="aspect-card-header">
         <div class="aspect-harmony-dot" style="background:${dotColor};"></div>
-        <div class="aspect-planets">${escHtml(m1)} ${asp.symbol} ${escHtml(m2)}</div>
+        <div class="aspect-planets">${escHtml(asp.p1)} ${asp.symbol} ${escHtml(asp.p2)}</div>
         <span class="ptag ${isPos?'ptag-fav':'ptag-rx'}" style="margin-left:auto;">${asp.name}</span>
       </div>
       <div class="aspect-desc">${desc}</div>
@@ -3182,7 +3186,7 @@ function renderRetrogrades(skyData){
     return`<div class="rx-row" onclick="openPlanetSheet('${escHtml(p)}')">
       <div class="rx-symbol">${symbol}</div>
       <div>
-        <div class="rx-name">${escHtml(MYTH[p]||p)} <span style="color:var(--cream-dim);font-size:11px;">(${escHtml(p)})</span></div>
+        <div class="rx-name">${escHtml(p)}${MYTH[p]&&MYTH[p]!==p?` <span style="color:var(--cream-dim);font-size:11px;">(${escHtml(MYTH[p])})</span>`:''}</div>
         <div class="rx-note">${escHtml(RETROGRADE_NOTES[p])}</div>
       </div>
     </div>`;
