@@ -1226,6 +1226,7 @@ function saveLocation(loc){
 
 // ── LIVE SKY CACHE ────────────────────────────────────
 let skyCache=null,skyCacheDate=null;
+let todaySky=null;
 function getSkyData(date,isLive=false){
   const tz=getTzOffset(userLocation?.timezone,date);
   const key=date.toDateString()+(userLocation?.timezone||'UTC')+(userLocation?userLocation.lat+','+userLocation.lon:'')+(isLive?'L':'');
@@ -1513,12 +1514,10 @@ function closeSheet(){document.getElementById('sheet-overlay').classList.remove(
 
 function openPlanetSheet(key){
   const p=PLANETS.find(x=>x.key===key);if(!p)return;
-  const sky=getSkyData(new Date(),true);
+  const sky=todaySky||getSkyData(new Date(),true);
   const pos=sky.positions[key];
   const rx=pos&&pos.retrograde;
   const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';
-  const catKey=['finance','comms','mind','spirit'][activeCat];
-  const catText=p[catKey]||p.detail;
   // House context
   let houseHtml='';
   if(sky.houses&&sky.houses[key]){
@@ -1547,13 +1546,28 @@ function openPlanetSheet(key){
     });
     aspectHtml+=`</div>`;
   }
-  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${p.current}</div>${aspectHtml}<div class="sheet-section-title">How It Affects · ${CAT_NAMES[activeCat]}</div><div class="sheet-body">${catText}</div>`);
+  // Dynamic "In The Sky Now" — always matches computed position
+  let dynamicCurrent='';
+  if(pos){
+    const signMode=SIGN_MODES[pos.sign]||'';
+    const domain=PLANET_DOMAINS[key]||'energy';
+    const rxNote=rx?' It is currently retrograde — review rather than initiate.':'';
+    dynamicCurrent=`${key} is in ${pos.sign}${signMode?`, bringing its ${domain} ${signMode}`:''}.${rxNote}`;
+  }
+  // All 4 category texts
+  const catKeys=['finance','comms','mind','spirit'];
+  let catRows='';
+  catKeys.forEach((k,ci)=>{
+    if(p[k]) catRows+=`<div style="padding:7px 0;border-bottom:1px solid var(--border-dim);font-size:11px;"><span style="color:var(--cream-dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;">${CAT_NAMES[ci]}</span><div style="margin-top:3px;line-height:1.6;">${p[k]}</div></div>`;
+  });
+  const catSectionHtml=catRows?`<div class="sheet-section-title">By Life Area</div><div class="sheet-body">${catRows}</div>`:'';
+  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${dynamicCurrent||p.detail}</div>${aspectHtml}${catSectionHtml}`);
 }
 
-function openDateSheet(day,score,sky,yr,mo){
+function openDateSheet(day,score,sky,yr,mo,cat=0){
   const now=new Date();
   const useYr=yr||now.getFullYear(),useMo=mo||(now.getMonth()+1);
-  if(!sky){const date=new Date(useYr,useMo-1,day);sky=getSkyData(date);score=Ephemeris.scoreDay(sky,activeCat);}
+  if(!sky){const date=new Date(useYr,useMo-1,day);sky=getSkyData(date);score=Ephemeris.scoreDay(sky,cat);}
   const quality=QUALITY_NAMES[score];
   const badgeClass=QUALITY_BADGE_CLASS[score];
   const dotColor=score===3?'#7dcf9e':score>=4?(score===5?'#d47070':'var(--gold)'):score>=1?'#7dcf9e':'var(--cream-dim)';
@@ -1593,7 +1607,7 @@ function openDateSheet(day,score,sky,yr,mo){
 
   // Key planets for this category with sign dignity + house
   const catPlanets={0:['Venus','Jupiter','Saturn','Mercury'],1:['Mercury','Venus','Mars','Moon'],2:['Moon','Mercury','Mars','Chiron'],3:['Sun','Jupiter','Neptune','Moon']};
-  const keyPs=catPlanets[activeCat]||catPlanets[0];
+  const keyPs=catPlanets[cat]||catPlanets[0];
   let dignityRows='';
   keyPs.forEach(pName=>{
     const pos=sky.positions[pName];if(!pos)return;
@@ -1608,11 +1622,12 @@ function openDateSheet(day,score,sky,yr,mo){
       ${hd?`<div style="text-align:right;color:var(--cream-dim);">${hd.name}<br><span style="font-size:10px;color:var(--cream-faint);">${hd.theme}</span></div>`:''}
     </div>`;
   });
-  if(dignityRows) bodyHtml+=`<div style="margin-top:14px;"><div class="sheet-section-title">Key Planets — Sign & House</div>${dignityRows}</div>`;
+  if(dignityRows) bodyHtml+=`<div style="margin-top:14px;"><div class="sheet-section-title">Key Planets for ${CAT_NAMES[cat]}</div>${dignityRows}</div>`;
+  if(CURRENT_PICTURE[cat]) bodyHtml+=`<div style="margin-top:14px;font-size:12px;line-height:1.7;color:var(--cream-dim);">${CURRENT_PICTURE[cat]}</div>`;
 
   if(rxList.length>0)bodyHtml+=`<div style="margin-top:10px;font-size:11px;color:var(--cream-dim)">Retrograde: ${rxList.join(', ')} — review rather than initiate.</div>`;
   if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon'].sign} — no major aspects strongly favor or challenge this area today.</div>`;
-  openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[useMo-1]} ${useYr} · ${CAT_NAMES[activeCat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div>${houseContextHtml}<div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
+  openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[useMo-1]} ${useYr} · ${CAT_NAMES[cat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div>${houseContextHtml}<div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3076,7 +3091,7 @@ function renderEnergyIndicators(catScores,skyData){
   el.innerHTML=catScores.map((score,i)=>{
     const cls=SCORE_CLASS_D[score]||'ei-neutral';
     const label=SCORE_LABEL_D[score]||'Neutral';
-    return`<div class="ei-tile ${cls}" onclick="openDateSheet(${todayNum},${score},null,${today.getFullYear()},${today.getMonth()+1})">
+    return`<div class="ei-tile ${cls}" onclick="openDateSheet(${todayNum},${score},null,${today.getFullYear()},${today.getMonth()+1},${i})">
       <div class="ei-icon">${CAT_ICONS_D[i]}</div>
       <div class="ei-name">${CAT_SHORT_D[i]}</div>
       <div class="ei-label">${label}</div>
@@ -3192,6 +3207,7 @@ function renderCycleCard(){
 function renderTodayScreen(){
   const now=new Date();
   const skyData=getSkyData(now,true);
+  todaySky=skyData;
   const catScores=[0,1,2,3].map(c=>scoreDay(skyData,c));
 
   document.getElementById('today-greeting').textContent=generateGreeting(skyData,catScores);
