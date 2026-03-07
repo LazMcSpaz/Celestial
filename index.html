@@ -3,7 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Celestial">
+<meta name="theme-color" content="#0a0a12">
 <title>Celestial</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <script>
 // ═══════════════════════════════════════════════════════
@@ -453,7 +459,7 @@ const Ephemeris = (() => {
     return `${phaseName} · ${positions['Moon'].sign} Moon — steady, unremarkable sky`;
   }
 
-  return { calculate, scoreDay, generateHeadline, lunarPhaseName, lunarPhaseEmoji, toZodiac, jdn, T: julCent, calcAscendant, assignHouses, essentialDignity, DIGNITIES };
+  return { calculate, scoreDay, generateHeadline, lunarPhaseName, lunarPhaseEmoji, toZodiac, jdn, T: julCent, calcAscendant, assignHouses, essentialDignity, DIGNITIES, getAspect };
 })();
 </script>
 <style>
@@ -952,6 +958,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="app-date" id="header-date">Loading...</div>
         <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Change location">📍</div>
+        <div onclick="openSettingsSheet()" style="cursor:pointer;color:var(--cream-dim);font-size:15px;padding:4px;" title="Settings">⚙</div>
       </div>
     </div>
     <div class="scroll-area">
@@ -1198,7 +1205,103 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 </div>
 <script>
 // ── EPHEMERIS ALIASES ─────────────────────────────────
-const {calculate,scoreDay}=Ephemeris;
+const {calculate,scoreDay:_scoreDayBase}=Ephemeris;
+
+// ── NATAL CHART ────────────────────────────────────────
+// Computed once from celestial_birth, cached to celestial_natal.
+// All personal transit logic reads from this object.
+let natalChart=null;
+
+function loadNatalChart(){
+  if(natalChart)return natalChart;
+  try{
+    const cached=localStorage.getItem('celestial_natal');
+    if(cached){natalChart=JSON.parse(cached);return natalChart;}
+  }catch(e){}
+  return computeNatalChart();
+}
+
+function computeNatalChart(){
+  try{
+    const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+    if(!birth||!birth.date)return null;
+    const d=birth.date;
+    const birthDate=new Date(d.year,d.month-1,d.day);
+    if(birth.timeKnown&&birth.time){
+      const parts=birth.time.split(':');
+      birthDate.setHours(+parts[0],+(parts[1]||0),0,0);
+    }
+    const birthLoc=(birth.lat!=null&&birth.lon!=null)?{lat:birth.lat,lon:birth.lon}:null;
+    const tz=getTzOffset(birth.timezone,birthDate);
+    const useTime=!!(birth.timeKnown&&birth.time);
+    const natal=Ephemeris.calculate(birthDate,tz,birthLoc,useTime);
+    natalChart={positions:natal.positions,ascDegree:natal.ascDegree,mcDegree:natal.mcDegree,jd:natal.jd};
+    try{localStorage.setItem('celestial_natal',JSON.stringify(natalChart));}catch(e){}
+    return natalChart;
+  }catch(e){return null;}
+}
+
+// Descriptions for how each transiting planet feels when aspecting a natal planet
+const NATAL_ASP_HINTS={
+  Sun:     {positive:'vitality and purpose flow into this area of your life',negative:'ego and will are under pressure here — breathe through it'},
+  Moon:    {positive:'emotional attunement opens naturally today',negative:'feelings surface here that are asking for your attention'},
+  Mercury: {positive:'thought and expression reach this part of your chart with clarity',negative:'communication carries extra weight in this area today'},
+  Venus:   {positive:'warmth and openness touch this corner of your life',negative:'values or connections here may feel strained'},
+  Mars:    {positive:'energy and initiative are available for this part of your life',negative:'friction or urgency may be felt here — move deliberately'},
+  Jupiter: {positive:'expansion and good fortune are reaching this area',negative:'overreach or restlessness may color this part of the chart'},
+  Saturn:  {positive:'patience and structure are paying off here',negative:'resistance or limitation is the teacher in this area today'},
+};
+
+// Returns transit→natal aspects sorted by tightness (orb), filtered to meaningful pairs.
+function getPersonalTransits(transitSky){
+  const natal=loadNatalChart();
+  if(!natal)return[];
+  const transiting=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'];
+  const personal=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'];
+  const slow=['Jupiter','Saturn'];
+  const result=[];
+  transiting.forEach(tp=>{
+    const tLon=transitSky.positions[tp]?.lon;
+    if(tLon==null)return;
+    const maxOrb=slow.includes(tp)?8:4;
+    personal.forEach(np=>{
+      const nLon=natal.positions[np]?.lon;
+      if(nLon==null)return;
+      const asp=Ephemeris.getAspect(tLon,nLon);
+      if(!asp||asp.diff>maxOrb)return;
+      result.push({transitPlanet:tp,natalPlanet:np,...asp});
+    });
+  });
+  return result.sort((a,b)=>a.diff-b.diff);
+}
+
+// scoreDay wrapper — adds natal modifier (±1 on the 0–5 scale)
+function scoreDay(sky,cat){
+  let s=_scoreDayBase(sky,cat);
+  const natal=loadNatalChart();
+  if(!natal)return s;
+  const catPlanets={0:['Venus','Jupiter','Saturn','Mercury'],1:['Mercury','Venus','Mars','Moon'],2:['Moon','Mercury','Mars','Chiron'],3:['Sun','Jupiter','Neptune','Moon']};
+  const keyPs=catPlanets[cat]||catPlanets[0];
+  let best=null;
+  keyPs.forEach(tp=>{
+    const tLon=sky.positions[tp]?.lon;
+    if(tLon==null)return;
+    Object.entries(natal.positions).forEach(([,nPos])=>{
+      const asp=Ephemeris.getAspect(tLon,nPos.lon);
+      if(!asp||asp.diff>5)return;
+      if(!best||asp.diff<best.diff)best=asp;
+    });
+  });
+  if(best){
+    if(best.harmony==='positive'){
+      if(s>=4)s--;             // soften a caution/challenging day
+      else if(s<=1&&best.diff<3)s=Math.min(s+1,2); // small lift on quiet days
+    } else if(best.harmony==='negative'&&best.diff<3){
+      if(s<4)s=Math.min(s+1,4); // push toward caution, not past it
+    }
+  }
+  return s;
+}
 
 // ── TIMEZONE — derived from entered city, not the device ─────────────────
 // Uses the IANA timezone name stored with the location to compute accurate
@@ -1584,7 +1687,32 @@ function openPlanetSheet(key){
     if(p[k]) catRows+=`<div style="padding:7px 0;border-bottom:1px solid var(--border-dim);font-size:11px;"><span style="color:var(--cream-dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;">${CAT_NAMES[ci]}</span><div style="margin-top:3px;line-height:1.6;">${p[k]}</div></div>`;
   });
   const catSectionHtml=catRows?`<div class="sheet-section-title">By Life Area</div><div class="sheet-body">${catRows}</div>`:'';
-  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${dynamicCurrent||p.detail}</div>${aspectHtml}${catSectionHtml}`);
+  // Personal transits to this natal planet
+  let natalHtml='';
+  const natal=loadNatalChart();
+  if(natal&&natal.positions[key]&&pos){
+    const natalPos=natal.positions[key];
+    const natalAsps=Object.entries(sky.positions)
+      .map(([tp,tPos])=>{
+        if(tp===key)return null;
+        const a=Ephemeris.getAspect(tPos.lon,natalPos.lon);
+        if(!a||a.diff>6)return null;
+        return{transitPlanet:tp,...a};
+      })
+      .filter(Boolean)
+      .sort((a,b)=>a.diff-b.diff)
+      .slice(0,3);
+    if(natalAsps.length){
+      natalHtml='<div class="sheet-section-title">Personal Transits</div><div class="sheet-body">';
+      natalAsps.forEach(na=>{
+        const color=na.harmony==='positive'?'#7dcf9e':na.harmony==='negative'?'#d47070':'var(--cream-dim)';
+        const hint=NATAL_ASP_HINTS[na.transitPlanet]?.[na.harmony]||'';
+        natalHtml+=`<div style="margin-bottom:10px;"><span style="color:${color};">${na.symbol} ${mythLabel(na.transitPlanet)} ${na.name}s your natal ${mythLabel(key)}</span><div style="font-size:11px;color:var(--cream-dim);margin-top:2px;line-height:1.5;">${hint}.</div></div>`;
+      });
+      natalHtml+='</div>';
+    }
+  }
+  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${dynamicCurrent||p.detail}</div>${aspectHtml}${natalHtml}${catSectionHtml}`);
 }
 
 function openDateSheet(day,score,sky,yr,mo,cat=0){
@@ -1649,7 +1777,7 @@ function openDateSheet(day,score,sky,yr,mo,cat=0){
   bodyHtml+=`<div style="margin-top:14px;font-size:12px;line-height:1.7;color:var(--cream-dim);">${generateCategoryPicture(sky,cat)}</div>`;
 
   if(rxList.length>0)bodyHtml+=`<div style="margin-top:10px;font-size:11px;color:var(--cream-dim)">Retrograde: ${rxList.join(', ')} — review rather than initiate.</div>`;
-  if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon'].sign} — no major aspects strongly favor or challenge this area today.</div>`;
+  if(!bodyHtml)bodyHtml=`<div>${sky.phaseName} in ${sky.positions['Moon']?.sign??''} — no major aspects strongly favor or challenge this area today.</div>`;
   openSheet(`<div class="sheet-date-header"><div class="today-label">${MONTH_NAMES[useMo-1]} ${useYr} · ${CAT_NAMES[cat]}</div><div class="sheet-date-big">${day}</div></div><span class="quality-badge ${badgeClass}"><span style="width:6px;height:6px;border-radius:50%;background:${dotColor};display:inline-block;"></span>${quality}</span><div class="sheet-headline">${headline}</div>${houseContextHtml}<div class="sheet-body">${bodyHtml}</div><div class="sheet-body" style="margin-top:10px;">${sky.phaseEmoji} ${sky.phaseName} · Moon in ${sky.positions['Moon'].sign}</div><button class="sheet-cta" onclick="closeSheet();navTo('guide');">See Full Guidance →</button>`);
 }
 
@@ -2044,8 +2172,12 @@ function finishOnboarding(){
   try{localStorage.setItem('celestial_prefs',JSON.stringify({
     chronotype:obData.chronotype,workStyle:obData.workStyle,
     season:obData.season,cultivating:obData.cultivating,
+    notifMorning:obData.notifMorning,notifMorningTime:obData.notifMorningTime,
+    notifTasks:obData.notifTasks,notifPlanetary:obData.notifPlanetary,
   }));}catch(e){}
   try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
+  natalChart=null; // clear in-memory cache so computeNatalChart re-reads fresh birth data
+  computeNatalChart(); // pre-compute and cache natal chart while user sees the welcome screen
   hideOnboarding();
   maybeShowTourPrompt();
 }
@@ -2475,6 +2607,176 @@ function obToggleCycle(checked){
 
 // ═══════════════════════════════════════════════════════
 // LOCATION SHEET — Nominatim city autocomplete
+// ── Settings sheet ────────────────────────────────────
+function openSettingsSheet(){
+  const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'null');
+  const cycle=JSON.parse(localStorage.getItem('celestial_cycle')||'null');
+  const loc=userLocation;
+
+  // Birth data summary
+  let birthSummary='Not yet entered';
+  if(birth&&birth.date){
+    const d=birth.date;
+    const dateStr=`${d.month}/${d.day}/${d.year}`;
+    const timeStr=birth.timeKnown&&birth.time?birth.time:'time unknown';
+    const cityStr=birth.cityName||'location unknown';
+    birthSummary=`${dateStr} · ${timeStr} · ${cityStr}`;
+  }
+
+  // Cycle summary
+  let cycleSummary='Not set';
+  if(cycle&&cycle.lastStart)cycleSummary=`Last period: ${cycle.lastStart} · Avg length: ${cycle.avgLength||28} days`;
+  else if(localStorage.getItem('celestial_cycle_declined'))cycleSummary='Opted out';
+
+  const row=(label,value,action,actionLabel)=>`
+    <div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div>
+        <div style="font-size:12px;color:var(--cream);margin-bottom:2px;">${label}</div>
+        <div style="font-size:11px;color:var(--cream-dim);line-height:1.4;">${value}</div>
+      </div>
+      ${action?`<button onclick="${action}" style="background:none;border:1px solid var(--border);color:var(--gold);font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;">${actionLabel}</button>`:''}
+    </div>`;
+
+  // Notification summary
+  const notifGranted = ('Notification' in window) && Notification.permission === 'granted';
+  const notifSupported = 'Notification' in window;
+  let notifSummary = 'Not supported on this browser';
+  if (notifSupported) {
+    if (!notifGranted) notifSummary = 'Permission not granted — tap Enable';
+    else {
+      const parts = [];
+      if (prefs?.notifMorning) parts.push(`Morning brief at ${prefs.notifMorningTime||'08:00'}`);
+      if (prefs?.notifTasks) parts.push('Deadline alerts');
+      if (prefs?.notifPlanetary) parts.push('Planetary events');
+      notifSummary = parts.length ? parts.join(' · ') : 'All off';
+    }
+  }
+
+  const html=`
+    <div class="sheet-section-title">Your Data</div>
+    <div class="sheet-body">
+      ${row('Birth Data',birthSummary,'resetBirthData()','Re-enter')}
+      ${row('Current Location',loc?loc.name:'Not set','closeSheet();openLocationSheet()','Change')}
+      ${row('Cycle Tracking',cycleSummary,'openCycleSettings()','Edit')}
+    </div>
+    <div class="sheet-section-title" style="margin-top:16px;">Notifications</div>
+    <div class="sheet-body">
+      ${row('Status',notifSummary,notifSupported&&!notifGranted?'requestNotifFromSettings()':'openNotifSettings()','Edit')}
+    </div>
+    <div class="sheet-section-title" style="margin-top:16px;">About</div>
+    <div class="sheet-body" style="font-size:12px;color:var(--cream-dim);line-height:1.7;">
+      <div style="margin-bottom:8px;">Birth data, cycle data, and current location are stored only on this device. Celestial never sees them.</div>
+      <div>Celestial · Timing Intelligence</div>
+    </div>`;
+
+  openSheet(html);
+}
+
+function resetBirthData(){
+  if(!confirm('Re-enter your birth data? This will clear your current natal chart and rebuild it with the new data.'))return;
+  localStorage.removeItem('celestial_birth');
+  localStorage.removeItem('celestial_natal');
+  natalChart=null;
+  closeSheet();
+  // Re-open onboarding at birth-date step
+  obStepIdx=obSteps.indexOf('birth-date');
+  obData.birthDate=null;obData.birthTime=null;obData.birthTimeKnown=true;obData.birthLoc=null;
+  document.getElementById('onboarding-overlay').style.display='flex';
+  renderObStep();
+}
+
+function openCycleSettings(){
+  const cycle=JSON.parse(localStorage.getItem('celestial_cycle')||'null');
+  const declined=localStorage.getItem('celestial_cycle_declined');
+  const html=`
+    <div class="sheet-section-title">Cycle Tracking</div>
+    <div class="sheet-body">
+      <div style="font-size:12px;color:var(--cream-dim);margin-bottom:16px;line-height:1.6;">Your cycle data stays on this device only.</div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--cream-dim);margin-bottom:6px;">Date of last period start</div>
+        <input type="date" id="cycle-last-start-input" value="${cycle?.lastStart||''}" style="background:var(--surface);border:1px solid var(--border);color:var(--cream);padding:8px 12px;border-radius:8px;width:100%;font-size:13px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;color:var(--cream-dim);margin-bottom:6px;">Average cycle length (days)</div>
+        <input type="number" id="cycle-length-input" value="${cycle?.avgLength||28}" min="21" max="45" style="background:var(--surface);border:1px solid var(--border);color:var(--cream);padding:8px 12px;border-radius:8px;width:100%;font-size:13px;">
+      </div>
+      <button class="sheet-cta" onclick="saveCycleSettings()" style="margin-top:0;">Save</button>
+      ${!declined?'':''}
+    </div>`;
+  openSheet(html);
+}
+
+function saveCycleSettings(){
+  const lastStart=document.getElementById('cycle-last-start-input').value;
+  const avgLength=+document.getElementById('cycle-length-input').value||28;
+  if(!lastStart){closeSheet();return;}
+  try{localStorage.setItem('celestial_cycle',JSON.stringify({lastStart,avgLength}));}catch(e){}
+  closeSheet();
+  renderTodayScreen();
+}
+
+async function requestNotifFromSettings(){
+  if(!('Notification' in window))return;
+  const perm=await Notification.requestPermission();
+  if(perm==='granted') scheduleLocalNotifications();
+  closeSheet();
+  openSettingsSheet();
+}
+
+function openNotifSettings(){
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'{}');
+  const morningOn=prefs.notifMorning!==false;
+  const morningTime=prefs.notifMorningTime||'08:00';
+  const tasksOn=prefs.notifTasks!==false;
+  const planetaryOn=prefs.notifPlanetary!==false;
+  const html=`
+    <div class="sheet-section-title">Notifications</div>
+    <div class="sheet-body">
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-dim);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:13px;color:var(--cream);">Morning Brief</div>
+          <label class="ob-toggle"><input type="checkbox" id="ns-morning"${morningOn?' checked':''}
+            onchange="document.getElementById('ns-time-row').style.display=this.checked?'flex':'none'">
+            <div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></div></label>
+        </div>
+        <div id="ns-time-row" style="display:${morningOn?'flex':'none'};align-items:center;gap:10px;padding-left:2px;margin-bottom:4px;">
+          <span style="font-size:11px;color:var(--cream-dim);">Send at</span>
+          <input type="time" id="ns-morning-time" value="${morningTime}"
+            style="background:var(--surface);border:1px solid var(--border);color:var(--cream);padding:5px 10px;border-radius:6px;font-size:12px;">
+        </div>
+        <div style="font-size:11px;color:var(--cream-dim);">Your daily sky read, energy score, and most significant transit</div>
+      </div>
+      <div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:13px;color:var(--cream);">Deadline Alerts</div>
+          <div style="font-size:11px;color:var(--cream-dim);margin-top:2px;">Evening before + morning of task deadlines</div>
+        </div>
+        <label class="ob-toggle"><input type="checkbox" id="ns-tasks"${tasksOn?' checked':''}><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></div></label>
+      </div>
+      <div style="padding:12px 0;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:13px;color:var(--cream);">Planetary Events</div>
+          <div style="font-size:11px;color:var(--cream-dim);margin-top:2px;">Retrogrades, lunations, ingresses</div>
+        </div>
+        <label class="ob-toggle"><input type="checkbox" id="ns-planetary"${planetaryOn?' checked':''}><div class="ob-toggle-track"><div class="ob-toggle-thumb"></div></div></label>
+      </div>
+      <button class="sheet-cta" onclick="saveNotifSettings()" style="margin-top:8px;">Save</button>
+    </div>`;
+  openSheet(html);
+}
+
+function saveNotifSettings(){
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'{}');
+  prefs.notifMorning=document.getElementById('ns-morning').checked;
+  prefs.notifMorningTime=document.getElementById('ns-morning-time')?.value||'08:00';
+  prefs.notifTasks=document.getElementById('ns-tasks').checked;
+  prefs.notifPlanetary=document.getElementById('ns-planetary').checked;
+  try{localStorage.setItem('celestial_prefs',JSON.stringify(prefs));}catch(e){}
+  scheduleLocalNotifications();
+  closeSheet();
+}
+
 // ═══════════════════════════════════════════════════════
 let _locDebounce=null;
 function openLocationSheet(){
@@ -3032,6 +3334,15 @@ const CAT_CLOSINGS=[
 
 // ── Greeting ─────────────────────────────────────────
 function generateGreeting(skyData,catScores){
+  // Tight personal transit takes priority (orb < 2°)
+  const personalTransits=getPersonalTransits(skyData);
+  const tight=personalTransits.find(pt=>pt.diff<2);
+  if(tight){
+    const m1=mythLabel(tight.transitPlanet),m2=mythLabel(tight.natalPlanet);
+    const harmWord=tight.harmony==='positive'?'graces':tight.harmony==='negative'?'presses against':'closely meets';
+    const hint=NATAL_ASP_HINTS[tight.transitPlanet]?.[tight.harmony]||'a personal note colors the sky';
+    return`${m1} ${harmWord} your natal ${m2} — ${hint}.`;
+  }
   // Retrograde check (prioritised order)
   for(const p of['Mercury','Venus','Mars','Saturn','Jupiter']){
     if(skyData.positions[p]?.retrograde&&RETROGRADE_NOTES[p]){
@@ -3082,7 +3393,17 @@ function generateDailyRead(skyData,catScores){
     sentences.push(`Moon (Selene) moves through <em>${signDesc}</em>. ${phaseNote}`);
   }
 
-  // 3. Retrograde context (one planet max)
+  // 3. Personal transit (most significant, if birth data available)
+  const personalTransits=getPersonalTransits(skyData);
+  if(personalTransits.length){
+    const pt=personalTransits[0];
+    const m1=mythLabel(pt.transitPlanet),m2=mythLabel(pt.natalPlanet);
+    const harmPhrase=pt.harmony==='positive'?'moves in harmony with':pt.harmony==='negative'?'presses against':'closely meets';
+    const hint=NATAL_ASP_HINTS[pt.transitPlanet]?.[pt.harmony]||'a personal note colors the sky';
+    sentences.push(`<em>${m1} ${harmPhrase} your natal ${m2}</em> — ${hint}.`);
+  }
+
+  // 4. Retrograde context (one planet max)
   const rxPlanets=Object.entries(skyData.positions)
     .filter(([k,v])=>v.retrograde&&RETROGRADE_NOTES[k])
     .map(([k])=>k);
@@ -3092,11 +3413,12 @@ function generateDailyRead(skyData,catScores){
   }
 
   // 4. Closing guidance
-  const best=catScores.indexOf(Math.max(...catScores));
-  const worst=Math.max(...catScores);
-  if(catScores[best]>=2){
-    sentences.push(CAT_CLOSINGS[best]);
-  } else if(worst>=4){
+  // Find the best *favorable* score (1–3 range only); track worst separately.
+  const bestIdx=catScores.reduce((bi,s,i)=>s>=1&&s<=3&&(bi===-1||s>catScores[bi])?i:bi,-1);
+  const worstVal=Math.max(...catScores);
+  if(bestIdx!==-1&&catScores[bestIdx]>=2){
+    sentences.push(CAT_CLOSINGS[bestIdx]);
+  } else if(worstVal>=4){
     sentences.push('The sky asks for patience and deliberate movement today.');
   } else {
     sentences.push('A quiet day — meet it on its own terms.');
@@ -3245,11 +3567,165 @@ function renderTodayScreen(){
 }
 
 // ═══════════════════════════════════════════════════════
+// PWA — Service Worker + Notifications
+// ═══════════════════════════════════════════════════════
+let _swReg = null;
+
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    _swReg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+  } catch (e) {
+    // SW registration failed — app still works normally
+  }
+}
+
+// Request notification permission if user opted in during onboarding
+async function maybeRequestNotifPermission() {
+  if (!('Notification' in window)) return;
+  const prefs = JSON.parse(localStorage.getItem('celestial_prefs') || 'null');
+  if (!prefs) return; // not onboarded yet
+  const wantsNotif = prefs.notifMorning || prefs.notifTasks || prefs.notifPlanetary;
+  if (!wantsNotif) return;
+  if (Notification.permission === 'granted') {
+    scheduleLocalNotifications();
+  } else if (Notification.permission === 'default') {
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') scheduleLocalNotifications();
+  }
+}
+
+// ─── Local notification scheduling (no push server needed) ─────────────────
+// We use in-app timers when the tab is open. True background push
+// requires a server-side push subscription (future backend).
+let _notifTimers = [];
+
+function scheduleLocalNotifications() {
+  _notifTimers.forEach(t => clearTimeout(t));
+  _notifTimers = [];
+  if (Notification.permission !== 'granted') return;
+
+  const prefs = JSON.parse(localStorage.getItem('celestial_prefs') || 'null');
+  if (!prefs) return;
+
+  const now = new Date();
+
+  // Morning brief
+  if (prefs.notifMorning && prefs.notifMorningTime) {
+    const [h, m] = prefs.notifMorningTime.split(':').map(Number);
+    const target = new Date(now);
+    target.setHours(h, m, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1); // tomorrow if past
+    const delay = target - now;
+    const t = setTimeout(() => {
+      showLocalNotification(
+        'Celestial — Morning Brief',
+        buildMorningBriefText(),
+        'morning-brief'
+      );
+      scheduleLocalNotifications(); // reschedule for next day
+    }, delay);
+    _notifTimers.push(t);
+  }
+
+  // Deadline alerts — check each task
+  if (prefs.notifTasks) {
+    const tasks = loadTasks().filter(t => t.deadline && !t.completed);
+    tasks.forEach(task => {
+      const dl = new Date(task.deadline);
+      // Alert evening before (6 pm)
+      const evening = new Date(dl);
+      evening.setDate(evening.getDate() - 1);
+      evening.setHours(18, 0, 0, 0);
+      if (evening > now) {
+        const t = setTimeout(() => {
+          showLocalNotification(
+            'Task due tomorrow',
+            `"${task.title}" is due tomorrow. ${buildDeadlineNoteText(task)}`,
+            `deadline-eve-${task.id}`
+          );
+        }, evening - now);
+        _notifTimers.push(t);
+      }
+      // Alert morning of (8 am)
+      const morning = new Date(dl);
+      morning.setHours(8, 0, 0, 0);
+      if (morning > now) {
+        const t = setTimeout(() => {
+          showLocalNotification(
+            'Task due today',
+            `"${task.title}" is due today.`,
+            `deadline-day-${task.id}`
+          );
+        }, morning - now);
+        _notifTimers.push(t);
+      }
+    });
+  }
+}
+
+function showLocalNotification(title, body, tag) {
+  if (Notification.permission !== 'granted') return;
+  if (_swReg) {
+    _swReg.showNotification(title, {
+      body, icon: './icon.svg', badge: './icon.svg', tag,
+      data: { url: './' }
+    });
+  } else {
+    new Notification(title, { body, icon: './icon.svg', tag });
+  }
+}
+
+function buildMorningBriefText() {
+  try {
+    const sky = getSkyData(new Date(), true);
+    const prefs = JSON.parse(localStorage.getItem('celestial_prefs') || '{}');
+    const cat = {finance:0,communication:1,'mind-body':2,spirit:3}[prefs.cultivating] ?? 0;
+    const score = scoreDay(sky, cat);
+    const quality = score <= 2 ? 'flowing' : score === 3 ? 'neutral' : 'tense';
+    const phase = Ephemeris.lunarPhaseName(sky.positions.Moon?.lon, sky.positions.Sun?.lon);
+    return `The sky is ${quality} today. Moon is in ${sky.positions.Moon?.sign || 'the sky'}${phase ? ` — ${phase}` : ''}.`;
+  } catch (e) {
+    return 'Your sky report is ready.';
+  }
+}
+
+function buildDeadlineNoteText(task) {
+  try {
+    const dl = new Date(task.deadline);
+    const sky = getSkyData(dl, true);
+    const score = scoreDay(sky, 0);
+    if (score <= 2) return 'The sky is supportive for completing it.';
+    if (score >= 4) return 'Consider finishing early — the day may be demanding.';
+  } catch (e) {}
+  return '';
+}
+
+// ─── Planetary event alerts (retrograde ingresses, major lunations) ─────────
+function schedulePlanetaryAlerts() {
+  if (Notification.permission !== 'granted') return;
+  const prefs = JSON.parse(localStorage.getItem('celestial_prefs') || 'null');
+  if (!prefs?.notifPlanetary) return;
+
+  const now = new Date();
+  const sky = getSkyData(now, true);
+
+  // Alert if any visible planet just entered retrograde (within last 24h)
+  const rxPlanets = Object.entries(sky.positions)
+    .filter(([, p]) => p.retrograde && ['Mercury','Venus','Mars','Jupiter','Saturn'].includes(
+      Object.keys(sky.positions).find(k => sky.positions[k] === p)
+    ));
+  // Note: this is approximate; a real implementation would store previous-day state
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 seedDefaultTasks();
+loadNatalChart(); // compute + cache natal positions before first render
 updateDateTime();
 setInterval(updateDateTime,30000);
+registerServiceWorker().then(() => maybeRequestNotifPermission());
 renderTodayScreen();
 </script>
 </body>
