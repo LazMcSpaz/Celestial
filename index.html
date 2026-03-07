@@ -453,7 +453,7 @@ const Ephemeris = (() => {
     return `${phaseName} · ${positions['Moon'].sign} Moon — steady, unremarkable sky`;
   }
 
-  return { calculate, scoreDay, generateHeadline, lunarPhaseName, lunarPhaseEmoji, toZodiac, jdn, T: julCent, calcAscendant, assignHouses, essentialDignity, DIGNITIES };
+  return { calculate, scoreDay, generateHeadline, lunarPhaseName, lunarPhaseEmoji, toZodiac, jdn, T: julCent, calcAscendant, assignHouses, essentialDignity, DIGNITIES, getAspect };
 })();
 </script>
 <style>
@@ -952,6 +952,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="app-date" id="header-date">Loading...</div>
         <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Change location">📍</div>
+        <div onclick="openSettingsSheet()" style="cursor:pointer;color:var(--cream-dim);font-size:15px;padding:4px;" title="Settings">⚙</div>
       </div>
     </div>
     <div class="scroll-area">
@@ -1198,7 +1199,103 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 </div>
 <script>
 // ── EPHEMERIS ALIASES ─────────────────────────────────
-const {calculate,scoreDay}=Ephemeris;
+const {calculate,scoreDay:_scoreDayBase}=Ephemeris;
+
+// ── NATAL CHART ────────────────────────────────────────
+// Computed once from celestial_birth, cached to celestial_natal.
+// All personal transit logic reads from this object.
+let natalChart=null;
+
+function loadNatalChart(){
+  if(natalChart)return natalChart;
+  try{
+    const cached=localStorage.getItem('celestial_natal');
+    if(cached){natalChart=JSON.parse(cached);return natalChart;}
+  }catch(e){}
+  return computeNatalChart();
+}
+
+function computeNatalChart(){
+  try{
+    const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+    if(!birth||!birth.date)return null;
+    const d=birth.date;
+    const birthDate=new Date(d.year,d.month-1,d.day);
+    if(birth.timeKnown&&birth.time){
+      const parts=birth.time.split(':');
+      birthDate.setHours(+parts[0],+(parts[1]||0),0,0);
+    }
+    const birthLoc=(birth.lat!=null&&birth.lon!=null)?{lat:birth.lat,lon:birth.lon}:null;
+    const tz=getTzOffset(birth.timezone,birthDate);
+    const useTime=!!(birth.timeKnown&&birth.time);
+    const natal=Ephemeris.calculate(birthDate,tz,birthLoc,useTime);
+    natalChart={positions:natal.positions,ascDegree:natal.ascDegree,mcDegree:natal.mcDegree,jd:natal.jd};
+    try{localStorage.setItem('celestial_natal',JSON.stringify(natalChart));}catch(e){}
+    return natalChart;
+  }catch(e){return null;}
+}
+
+// Descriptions for how each transiting planet feels when aspecting a natal planet
+const NATAL_ASP_HINTS={
+  Sun:     {positive:'vitality and purpose flow into this area of your life',negative:'ego and will are under pressure here — breathe through it'},
+  Moon:    {positive:'emotional attunement opens naturally today',negative:'feelings surface here that are asking for your attention'},
+  Mercury: {positive:'thought and expression reach this part of your chart with clarity',negative:'communication carries extra weight in this area today'},
+  Venus:   {positive:'warmth and openness touch this corner of your life',negative:'values or connections here may feel strained'},
+  Mars:    {positive:'energy and initiative are available for this part of your life',negative:'friction or urgency may be felt here — move deliberately'},
+  Jupiter: {positive:'expansion and good fortune are reaching this area',negative:'overreach or restlessness may color this part of the chart'},
+  Saturn:  {positive:'patience and structure are paying off here',negative:'resistance or limitation is the teacher in this area today'},
+};
+
+// Returns transit→natal aspects sorted by tightness (orb), filtered to meaningful pairs.
+function getPersonalTransits(transitSky){
+  const natal=loadNatalChart();
+  if(!natal)return[];
+  const transiting=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'];
+  const personal=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn'];
+  const slow=['Jupiter','Saturn'];
+  const result=[];
+  transiting.forEach(tp=>{
+    const tLon=transitSky.positions[tp]?.lon;
+    if(tLon==null)return;
+    const maxOrb=slow.includes(tp)?8:4;
+    personal.forEach(np=>{
+      const nLon=natal.positions[np]?.lon;
+      if(nLon==null)return;
+      const asp=Ephemeris.getAspect(tLon,nLon);
+      if(!asp||asp.diff>maxOrb)return;
+      result.push({transitPlanet:tp,natalPlanet:np,...asp});
+    });
+  });
+  return result.sort((a,b)=>a.diff-b.diff);
+}
+
+// scoreDay wrapper — adds natal modifier (±1 on the 0–5 scale)
+function scoreDay(sky,cat){
+  let s=_scoreDayBase(sky,cat);
+  const natal=loadNatalChart();
+  if(!natal)return s;
+  const catPlanets={0:['Venus','Jupiter','Saturn','Mercury'],1:['Mercury','Venus','Mars','Moon'],2:['Moon','Mercury','Mars','Chiron'],3:['Sun','Jupiter','Neptune','Moon']};
+  const keyPs=catPlanets[cat]||catPlanets[0];
+  let best=null;
+  keyPs.forEach(tp=>{
+    const tLon=sky.positions[tp]?.lon;
+    if(tLon==null)return;
+    Object.entries(natal.positions).forEach(([,nPos])=>{
+      const asp=Ephemeris.getAspect(tLon,nPos.lon);
+      if(!asp||asp.diff>5)return;
+      if(!best||asp.diff<best.diff)best=asp;
+    });
+  });
+  if(best){
+    if(best.harmony==='positive'){
+      if(s>=4)s--;             // soften a caution/challenging day
+      else if(s<=1&&best.diff<3)s=Math.min(s+1,2); // small lift on quiet days
+    } else if(best.harmony==='negative'&&best.diff<3){
+      if(s<4)s=Math.min(s+1,4); // push toward caution, not past it
+    }
+  }
+  return s;
+}
 
 // ── TIMEZONE — derived from entered city, not the device ─────────────────
 // Uses the IANA timezone name stored with the location to compute accurate
@@ -1584,7 +1681,32 @@ function openPlanetSheet(key){
     if(p[k]) catRows+=`<div style="padding:7px 0;border-bottom:1px solid var(--border-dim);font-size:11px;"><span style="color:var(--cream-dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;">${CAT_NAMES[ci]}</span><div style="margin-top:3px;line-height:1.6;">${p[k]}</div></div>`;
   });
   const catSectionHtml=catRows?`<div class="sheet-section-title">By Life Area</div><div class="sheet-body">${catRows}</div>`:'';
-  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${dynamicCurrent||p.detail}</div>${aspectHtml}${catSectionHtml}`);
+  // Personal transits to this natal planet
+  let natalHtml='';
+  const natal=loadNatalChart();
+  if(natal&&natal.positions[key]&&pos){
+    const natalPos=natal.positions[key];
+    const natalAsps=Object.entries(sky.positions)
+      .map(([tp,tPos])=>{
+        if(tp===key)return null;
+        const a=Ephemeris.getAspect(tPos.lon,natalPos.lon);
+        if(!a||a.diff>6)return null;
+        return{transitPlanet:tp,...a};
+      })
+      .filter(Boolean)
+      .sort((a,b)=>a.diff-b.diff)
+      .slice(0,3);
+    if(natalAsps.length){
+      natalHtml='<div class="sheet-section-title">Personal Transits</div><div class="sheet-body">';
+      natalAsps.forEach(na=>{
+        const color=na.harmony==='positive'?'#7dcf9e':na.harmony==='negative'?'#d47070':'var(--cream-dim)';
+        const hint=NATAL_ASP_HINTS[na.transitPlanet]?.[na.harmony]||'';
+        natalHtml+=`<div style="margin-bottom:10px;"><span style="color:${color};">${na.symbol} ${mythLabel(na.transitPlanet)} ${na.name}s your natal ${mythLabel(key)}</span><div style="font-size:11px;color:var(--cream-dim);margin-top:2px;line-height:1.5;">${hint}.</div></div>`;
+      });
+      natalHtml+='</div>';
+    }
+  }
+  openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr} · ${rx?'Retrograde':'Direct'}</div><span class="ptag ${rx?'ptag-rx':'ptag-neu'}" style="margin-top:5px;display:inline-block;">${rx?'Retrograde':'Direct'}</span></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div>${houseHtml}<div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${dynamicCurrent||p.detail}</div>${aspectHtml}${natalHtml}${catSectionHtml}`);
 }
 
 function openDateSheet(day,score,sky,yr,mo,cat=0){
@@ -2046,6 +2168,8 @@ function finishOnboarding(){
     season:obData.season,cultivating:obData.cultivating,
   }));}catch(e){}
   try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
+  natalChart=null; // clear in-memory cache so computeNatalChart re-reads fresh birth data
+  computeNatalChart(); // pre-compute and cache natal chart while user sees the welcome screen
   hideOnboarding();
   maybeShowTourPrompt();
 }
@@ -2475,6 +2599,96 @@ function obToggleCycle(checked){
 
 // ═══════════════════════════════════════════════════════
 // LOCATION SHEET — Nominatim city autocomplete
+// ── Settings sheet ────────────────────────────────────
+function openSettingsSheet(){
+  const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'null');
+  const cycle=JSON.parse(localStorage.getItem('celestial_cycle')||'null');
+  const loc=userLocation;
+
+  // Birth data summary
+  let birthSummary='Not yet entered';
+  if(birth&&birth.date){
+    const d=birth.date;
+    const dateStr=`${d.month}/${d.day}/${d.year}`;
+    const timeStr=birth.timeKnown&&birth.time?birth.time:'time unknown';
+    const cityStr=birth.cityName||'location unknown';
+    birthSummary=`${dateStr} · ${timeStr} · ${cityStr}`;
+  }
+
+  // Cycle summary
+  let cycleSummary='Not set';
+  if(cycle&&cycle.lastStart)cycleSummary=`Last period: ${cycle.lastStart} · Avg length: ${cycle.avgLength||28} days`;
+  else if(localStorage.getItem('celestial_cycle_declined'))cycleSummary='Opted out';
+
+  const row=(label,value,action,actionLabel)=>`
+    <div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div>
+        <div style="font-size:12px;color:var(--cream);margin-bottom:2px;">${label}</div>
+        <div style="font-size:11px;color:var(--cream-dim);line-height:1.4;">${value}</div>
+      </div>
+      ${action?`<button onclick="${action}" style="background:none;border:1px solid var(--border);color:var(--gold);font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;">${actionLabel}</button>`:''}
+    </div>`;
+
+  const html=`
+    <div class="sheet-section-title">Your Data</div>
+    <div class="sheet-body">
+      ${row('Birth Data',birthSummary,'resetBirthData()','Re-enter')}
+      ${row('Current Location',loc?loc.name:'Not set','closeSheet();openLocationSheet()','Change')}
+      ${row('Cycle Tracking',cycleSummary,'openCycleSettings()','Edit')}
+    </div>
+    <div class="sheet-section-title" style="margin-top:16px;">About</div>
+    <div class="sheet-body" style="font-size:12px;color:var(--cream-dim);line-height:1.7;">
+      <div style="margin-bottom:8px;">Birth data, cycle data, and current location are stored only on this device. Celestial never sees them.</div>
+      <div>Celestial · Timing Intelligence</div>
+    </div>`;
+
+  openSheet(html);
+}
+
+function resetBirthData(){
+  if(!confirm('Re-enter your birth data? This will clear your current natal chart and rebuild it with the new data.'))return;
+  localStorage.removeItem('celestial_birth');
+  localStorage.removeItem('celestial_natal');
+  natalChart=null;
+  closeSheet();
+  // Re-open onboarding at birth-date step
+  obStepIdx=obSteps.indexOf('birth-date');
+  obData.birthDate=null;obData.birthTime=null;obData.birthTimeKnown=true;obData.birthLoc=null;
+  document.getElementById('onboarding-overlay').style.display='flex';
+  renderObStep();
+}
+
+function openCycleSettings(){
+  const cycle=JSON.parse(localStorage.getItem('celestial_cycle')||'null');
+  const declined=localStorage.getItem('celestial_cycle_declined');
+  const html=`
+    <div class="sheet-section-title">Cycle Tracking</div>
+    <div class="sheet-body">
+      <div style="font-size:12px;color:var(--cream-dim);margin-bottom:16px;line-height:1.6;">Your cycle data stays on this device only.</div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--cream-dim);margin-bottom:6px;">Date of last period start</div>
+        <input type="date" id="cycle-last-start-input" value="${cycle?.lastStart||''}" style="background:var(--surface);border:1px solid var(--border);color:var(--cream);padding:8px 12px;border-radius:8px;width:100%;font-size:13px;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;color:var(--cream-dim);margin-bottom:6px;">Average cycle length (days)</div>
+        <input type="number" id="cycle-length-input" value="${cycle?.avgLength||28}" min="21" max="45" style="background:var(--surface);border:1px solid var(--border);color:var(--cream);padding:8px 12px;border-radius:8px;width:100%;font-size:13px;">
+      </div>
+      <button class="sheet-cta" onclick="saveCycleSettings()" style="margin-top:0;">Save</button>
+      ${!declined?'':''}
+    </div>`;
+  openSheet(html);
+}
+
+function saveCycleSettings(){
+  const lastStart=document.getElementById('cycle-last-start-input').value;
+  const avgLength=+document.getElementById('cycle-length-input').value||28;
+  if(!lastStart){closeSheet();return;}
+  try{localStorage.setItem('celestial_cycle',JSON.stringify({lastStart,avgLength}));}catch(e){}
+  closeSheet();
+  renderTodayScreen();
+}
+
 // ═══════════════════════════════════════════════════════
 let _locDebounce=null;
 function openLocationSheet(){
@@ -3032,6 +3246,15 @@ const CAT_CLOSINGS=[
 
 // ── Greeting ─────────────────────────────────────────
 function generateGreeting(skyData,catScores){
+  // Tight personal transit takes priority (orb < 2°)
+  const personalTransits=getPersonalTransits(skyData);
+  const tight=personalTransits.find(pt=>pt.diff<2);
+  if(tight){
+    const m1=mythLabel(tight.transitPlanet),m2=mythLabel(tight.natalPlanet);
+    const harmWord=tight.harmony==='positive'?'graces':tight.harmony==='negative'?'presses against':'closely meets';
+    const hint=NATAL_ASP_HINTS[tight.transitPlanet]?.[tight.harmony]||'a personal note colors the sky';
+    return`${m1} ${harmWord} your natal ${m2} — ${hint}.`;
+  }
   // Retrograde check (prioritised order)
   for(const p of['Mercury','Venus','Mars','Saturn','Jupiter']){
     if(skyData.positions[p]?.retrograde&&RETROGRADE_NOTES[p]){
@@ -3082,7 +3305,17 @@ function generateDailyRead(skyData,catScores){
     sentences.push(`Moon (Selene) moves through <em>${signDesc}</em>. ${phaseNote}`);
   }
 
-  // 3. Retrograde context (one planet max)
+  // 3. Personal transit (most significant, if birth data available)
+  const personalTransits=getPersonalTransits(skyData);
+  if(personalTransits.length){
+    const pt=personalTransits[0];
+    const m1=mythLabel(pt.transitPlanet),m2=mythLabel(pt.natalPlanet);
+    const harmPhrase=pt.harmony==='positive'?'moves in harmony with':pt.harmony==='negative'?'presses against':'closely meets';
+    const hint=NATAL_ASP_HINTS[pt.transitPlanet]?.[pt.harmony]||'a personal note colors the sky';
+    sentences.push(`<em>${m1} ${harmPhrase} your natal ${m2}</em> — ${hint}.`);
+  }
+
+  // 4. Retrograde context (one planet max)
   const rxPlanets=Object.entries(skyData.positions)
     .filter(([k,v])=>v.retrograde&&RETROGRADE_NOTES[k])
     .map(([k])=>k);
@@ -3248,6 +3481,7 @@ function renderTodayScreen(){
 // INIT
 // ═══════════════════════════════════════════════════════
 seedDefaultTasks();
+loadNatalChart(); // compute + cache natal positions before first render
 updateDateTime();
 setInterval(updateDateTime,30000);
 renderTodayScreen();
