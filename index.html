@@ -2514,6 +2514,20 @@ function loadTasks(){
 }
 function saveTasks(tasks){localStorage.setItem('celestial_tasks',JSON.stringify(tasks));}
 function addTask(task){const t=loadTasks();t.push(task);saveTasks(t);}
+
+function seedDefaultTasks(){
+  if(localStorage.getItem('celestial_tasks_seeded'))return;
+  const defaults=[
+    {title:'Journal',taskType:'reflective',energyRequired:'low',emotionalWeight:'light',repeating:'daily'},
+    {title:'Read for 30 minutes',taskType:'reflective',energyRequired:'focused',emotionalWeight:'light',repeating:'daily'},
+    {title:'Go on a walk',taskType:'physical',energyRequired:'low',emotionalWeight:'light',repeating:'daily'},
+  ];
+  const now=new Date().toISOString();
+  defaults.forEach((d,i)=>{
+    addTask({id:'seed'+i,deadline:null,completed:false,completedDate:null,createdAt:now,...d});
+  });
+  try{localStorage.setItem('celestial_tasks_seeded','1');}catch(e){}
+}
 function toggleTaskComplete(id){
   const tasks=loadTasks();
   const t=tasks.find(x=>x.id===id);
@@ -3210,6 +3224,7 @@ function renderTodayScreen(){
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
+seedDefaultTasks();
 updateDateTime();
 setInterval(updateDateTime,30000);
 renderTodayScreen();
