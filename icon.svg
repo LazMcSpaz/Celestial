@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0a0a12"/>
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#c9a96e" stroke-width="1.5" opacity="0.4"/>
+  <!-- Middle ring -->
+  <circle cx="256" cy="256" r="170" fill="none" stroke="#c9a96e" stroke-width="1" opacity="0.25"/>
+  <!-- Sun symbol -->
+  <circle cx="256" cy="256" r="48" fill="none" stroke="#c9a96e" stroke-width="2"/>
+  <circle cx="256" cy="256" r="10" fill="#c9a96e"/>
+  <!-- Zodiac tick marks (12) -->
+  <g stroke="#c9a96e" stroke-width="1.5" opacity="0.6">
+    <line x1="256" y1="26" x2="256" y2="50"/>
+    <line x1="370" y1="56.5" x2="356.8" y2="77.4"/>
+    <line x1="455.5" y1="141.5" x2="434.6" y2="154.7"/>
+    <line x1="486" y1="256" x2="462" y2="256"/>
+    <line x1="455.5" y1="370.5" x2="434.6" y2="357.3"/>
+    <line x1="370" y1="455.5" x2="356.8" y2="434.6"/>
+    <line x1="256" y1="486" x2="256" y2="462"/>
+    <line x1="142" y1="455.5" x2="155.2" y2="434.6"/>
+    <line x1="56.5" y1="370.5" x2="77.4" y2="357.3"/>
+    <line x1="26" y1="256" x2="50" y2="256"/>
+    <line x1="56.5" y1="141.5" x2="77.4" y2="154.7"/>
+    <line x1="142" y1="56.5" x2="155.2" y2="77.4"/>
+  </g>
+  <!-- Star accent top -->
+  <polygon points="256,140 259.5,150 270,150 261.5,156.5 264.5,167 256,161 247.5,167 250.5,156.5 242,150 252.5,150" fill="#c9a96e" opacity="0.9"/>
+  <!-- Crescent moon left -->
+  <path d="M196,256 a60,60 0 1,0 0,0.001 a42,42 0 1,1 0,-0.001z" fill="none" stroke="#c9a96e" stroke-width="1.5" opacity="0.5" transform="rotate(-30,256,256)"/>
+</svg>
