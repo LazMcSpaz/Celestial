@@ -863,6 +863,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .stc-title.done{text-decoration:line-through;color:var(--cream-dim);}
 .stc-deadline{font-size:11px;color:var(--cream-dim);margin-bottom:3px;}
 .stc-reason{font-size:11px;color:var(--cream-dim);font-style:italic;line-height:1.4;}
+.stc-defer{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--cream-faint);font-size:17px;cursor:pointer;flex-shrink:0;margin-top:-2px;border-radius:50%;transition:color .15s;}
+.stc-defer:active{color:var(--cream-dim);}
 .surfaced-see-all{text-align:center;padding:6px 20px 14px;font-size:12px;color:var(--gold);cursor:pointer;letter-spacing:.05em;}
 
 /* ── TASK CREATION MODAL ──────────────────────────────── */
@@ -2870,9 +2872,46 @@ function seedDefaultTasks(){
 function toggleTaskComplete(id){
   const tasks=loadTasks();
   const t=tasks.find(x=>x.id===id);
-  if(t){t.completed=!t.completed;t.completedDate=t.completed?new Date().toISOString().split('T')[0]:null;}
+  const todayStr=new Date().toISOString().split('T')[0];
+  if(t){
+    t.completed=!t.completed;
+    t.completedDate=t.completed?todayStr:null;
+    if(t.completed){
+      if(!t.history)t.history=[];
+      t.history.push({date:todayStr,action:'completed'});
+      if(t.history.length>30)t.history=t.history.slice(-30);
+    }
+  }
   saveTasks(tasks);
   renderSurfacedTasks();
+}
+
+function deferTask(id){
+  const tasks=loadTasks();
+  const t=tasks.find(x=>x.id===id);
+  const todayStr=new Date().toISOString().split('T')[0];
+  if(t){
+    if(!t.history)t.history=[];
+    t.history.push({date:todayStr,action:'deferred'});
+    if(t.history.length>30)t.history=t.history.slice(-30);
+    t.deferredDate=todayStr;
+  }
+  saveTasks(tasks);
+  renderSurfacedTasks();
+}
+
+function getAdaptiveBias(task){
+  const hist=task.history||[];
+  const cutoff=Date.now()-7*86400000;
+  const recent=hist.filter(h=>new Date(h.date+' 00:00:00').getTime()>=cutoff);
+  const completions=recent.filter(h=>h.action==='completed').length;
+  const deferrals=recent.filter(h=>h.action==='deferred').length;
+  let bias=0;
+  if(completions>=2)bias+=0.5;
+  if(completions>=4)bias+=0.5;
+  if(deferrals>=3)bias-=0.5;
+  if(deferrals>=5)bias-=0.5;
+  return Math.max(-1.5,Math.min(1.5,bias));
 }
 
 // ── Keyword heuristic ─────────────────────────────────
@@ -2936,9 +2975,10 @@ function surfaceTasks(){
   // catScore values: 0=neutral,1=slight,2=favorable,3=optimal,4=caution,5=challenging
   const catMap={0:0,1:1,2:2,3:3,4:-1,5:-2};
   return tasks
+    .filter(t=>t.deferredDate!==todayStr)
     .filter(t=>!t.completed||(t.repeating&&t.repeating!=='none'&&t.completedDate!==todayStr))
     .map(t=>{
-      let score=0;
+      let score=getAdaptiveBias(t);
       const cat=typeToCategory[t.taskType]??0;
       const cs=catScores[cat];
       score+=catMap[cs]??0;
@@ -3053,6 +3093,7 @@ function renderSurfacedTasks(){
     const fadeClass=isFaded?' stc-faded':'';
     const tapAttr=isFaded?`onclick="showAllTasks()"`:'' ;
     const checkClick=isFaded?`onclick="showAllTasks()"`:`onclick="toggleTaskComplete('${escHtml(task.id)}');event.stopPropagation();"`;
+    const deferBtn=(!isFaded&&!task.completed)?`<div class="stc-defer" title="Not today" onclick="deferTask('${escHtml(task.id)}');event.stopPropagation();">›</div>`:'';
     return`<div class="surfaced-task-card${fadeClass}" ${tapAttr}>
       <div class="stc-check${task.completed?' done':''}" ${checkClick}></div>
       <div class="stc-body">
@@ -3060,6 +3101,7 @@ function renderSurfacedTasks(){
         ${dlHtml}
         ${!isFaded?`<div class="stc-reason">${reason}</div>`:''}
       </div>
+      ${deferBtn}
     </div>`;
   }).join('');
   seeAll.style.display=hasMore?'block':'none';
