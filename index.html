@@ -3001,6 +3001,7 @@ function toggleTaskComplete(id){
   }
   saveTasks(tasks);
   renderSurfacedTasks();
+  if(t)showToast(t.completed?'Task complete ✓':'Marked incomplete');
 }
 
 function deferTask(id){
@@ -3015,6 +3016,7 @@ function deferTask(id){
   }
   saveTasks(tasks);
   renderSurfacedTasks();
+  if(t)showToast('Deferred until tomorrow');
 }
 
 function openTaskDetail(id){
@@ -3045,16 +3047,28 @@ function openTaskDetail(id){
       <button class="sheet-cta" style="flex:1;margin-top:0;" onclick="toggleTaskComplete('${escHtml(task.id)}');closeSheet();">${task.completed?'Mark Incomplete':'Mark Complete'}</button>
     </div>
     <div style="margin-top:10px;text-align:center;">
-      <span onclick="deleteTask('${escHtml(task.id)}');closeSheet();" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Remove task</span>
+      <span onclick="confirmDeleteTask('${escHtml(task.id)}');" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Remove task</span>
     </div>
   `);
 }
 
 function deleteTask(id){
-  if(!confirm('Remove this task?'))return;
   saveTasks(loadTasks().filter(t=>t.id!==id));
   renderSurfacedTasks();
   updateAllTasksSheet();
+  showToast('Task removed');
+}
+function confirmDeleteTask(id){
+  const task=loadTasks().find(t=>t.id===id);
+  if(!task)return;
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:8px;">Remove task?</div>
+    <div style="font-size:14px;color:var(--cream-dim);margin-bottom:24px;">${escHtml(task.title)}</div>
+    <div style="display:flex;gap:10px;">
+      <button class="sheet-cta" style="flex:1;margin-top:0;background:transparent;border:1px solid var(--border);color:var(--cream-dim);" onclick="openTaskDetail('${escHtml(id)}')">Keep it</button>
+      <button class="sheet-cta" style="flex:1;margin-top:0;" onclick="deleteTask('${escHtml(id)}');closeSheet();">Remove</button>
+    </div>
+  `);
 }
 
 function getAdaptiveBias(task){
@@ -3275,7 +3289,12 @@ function renderSurfacedTasks(){
   const list=document.getElementById('surfaced-tasks-list');
   const seeAll=document.getElementById('see-all-tasks-link');
   const scored=surfaceTasks();
-  if(!scored.length){section.style.display='none';return;}
+  if(!scored.length){
+    section.style.display='block';
+    list.innerHTML=`<div style="padding:16px 0 8px;font-size:13px;color:var(--cream-dim);font-style:italic;line-height:1.6;">Nothing pressing today — the sky is clear.<br><span style="font-size:12px;color:var(--cream-faint);">Tap + to add a task, or rest in the space.</span></div>`;
+    seeAll.style.display='none';
+    return;
+  }
   section.style.display='block';
   const top=scored.slice(0,3);
   const hasMore=scored.length>3;
