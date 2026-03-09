@@ -865,6 +865,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .stc-reason{font-size:11px;color:var(--cream-dim);font-style:italic;line-height:1.4;}
 .stc-defer{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--cream-faint);font-size:17px;cursor:pointer;flex-shrink:0;margin-top:-2px;border-radius:50%;transition:color .15s;}
 .stc-defer:active{color:var(--cream-dim);}
+#app-toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--surface-2,#2a2520);color:var(--cream);font-size:13px;letter-spacing:.04em;padding:10px 20px;border-radius:20px;border:1px solid var(--border);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:9999;white-space:nowrap;}
+#app-toast.visible{opacity:1;transform:translateX(-50%) translateY(0);}
 .surfaced-see-all{text-align:center;padding:6px 20px 14px;font-size:12px;color:var(--gold);cursor:pointer;letter-spacing:.05em;}
 
 /* ── BIRTH NUDGE ──────────────────────────────────────── */
@@ -1659,6 +1661,13 @@ function updateDateTime(){
 // ═══════════════════════════════════════════════════════
 function openSheet(html){document.getElementById('sheet-content').innerHTML=html;document.getElementById('sheet-overlay').classList.add('visible');document.getElementById('bottom-sheet').classList.add('open');}
 function closeSheet(){document.getElementById('sheet-overlay').classList.remove('visible');document.getElementById('bottom-sheet').classList.remove('open');}
+
+function showToast(msg){
+  let t=document.getElementById('app-toast');
+  if(!t){t=document.createElement('div');t.id='app-toast';document.body.appendChild(t);}
+  t.textContent=msg;t.classList.add('visible');
+  clearTimeout(t._tid);t._tid=setTimeout(()=>t.classList.remove('visible'),2200);
+}
 
 function openPlanetSheet(key){
   const p=PLANETS.find(x=>x.key===key);if(!p)return;
@@ -3165,6 +3174,26 @@ function surfaceTasks(){
       }
       // Life season — boost tasks aligned with user's current chapter
       if(seasonCat!==null&&cat===seasonCat)score+=0.5;
+      // Chronotype — boost deep-work tasks during peak hours, penalize during off-peak
+      if(prefs.chronotype&&t.energyRequired==='deep-work'){
+        const h=new Date().getHours();
+        const peak={
+          'early-morning': h>=5&&h<9,
+          'morning':        h>=9&&h<13,
+          'afternoon':      h>=13&&h<17,
+          'evening':        h>=17&&h<21,
+          'late-night':     h>=21||h<2,
+        }[prefs.chronotype];
+        const offPeak={
+          'early-morning': h>=17,
+          'morning':        h>=17,
+          'afternoon':      h<9||h>=20,
+          'evening':        h<13,
+          'late-night':     h>=8&&h<16,
+        }[prefs.chronotype];
+        if(peak)score+=0.5;
+        else if(offPeak)score-=0.25;
+      }
       // Deadline urgency
       if(t.deadline){
         const daysUntil=Math.floor((new Date(t.deadline+' 00:00:00')-new Date(todayStr+' 00:00:00'))/(86400000));
@@ -3377,6 +3406,7 @@ function taskNext(){
     addTask(task);
     closeTaskModal();
     renderSurfacedTasks();
+    showToast('Task added');
   }
 }
 
@@ -3428,9 +3458,9 @@ function showAllTasks(){
     active.forEach(t=>{
       const dl=t.deadline?`<div style="font-size:11px;color:var(--cream-dim);margin-top:3px;">${fmtDeadline(t.deadline)}</div>`:'';
       html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:center;">
-        <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();" style="margin-top:0;flex-shrink:0;"></div>
-        <div style="flex:1;min-width:0;"><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
-        <div onclick="deleteTask('${escHtml(t.id)}')" style="font-size:16px;color:var(--cream-faint);cursor:pointer;padding:4px 0 4px 8px;flex-shrink:0;" title="Remove task">✕</div>
+        <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();event.stopPropagation();" style="margin-top:0;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;cursor:pointer;" onclick="openTaskDetail('${escHtml(t.id)}')"><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
+        <div onclick="deleteTask('${escHtml(t.id)}');event.stopPropagation();" style="font-size:16px;color:var(--cream-faint);cursor:pointer;padding:4px 0 4px 8px;flex-shrink:0;" title="Remove task">✕</div>
       </div>`;
     });
   }
