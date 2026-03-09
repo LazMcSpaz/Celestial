@@ -867,6 +867,22 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .stc-defer:active{color:var(--cream-dim);}
 .surfaced-see-all{text-align:center;padding:6px 20px 14px;font-size:12px;color:var(--gold);cursor:pointer;letter-spacing:.05em;}
 
+/* ── BIRTH NUDGE ──────────────────────────────────────── */
+.birth-nudge-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;}
+.birth-nudge-icon{font-size:22px;flex-shrink:0;margin-top:1px;opacity:.75;}
+.birth-nudge-body{flex:1;min-width:0;}
+.birth-nudge-title{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--cream);margin-bottom:5px;}
+.birth-nudge-desc{font-size:12px;color:var(--cream-dim);line-height:1.6;margin-bottom:10px;}
+.birth-nudge-btn{background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:20px;cursor:pointer;}
+/* ── BIRTH CHART SHEET ────────────────────────────────── */
+.bcs-row{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border-dim);cursor:pointer;}
+.bcs-row:last-child{border-bottom:none;}
+.bcs-symbol{width:26px;text-align:center;font-size:16px;color:var(--gold);flex-shrink:0;}
+.bcs-info{flex:1;min-width:0;}
+.bcs-name{font-size:13px;color:var(--cream);line-height:1.2;}
+.bcs-pos{font-size:11px;color:var(--cream-dim);margin-top:2px;}
+.bcs-house{font-size:10px;color:var(--cream-faint);}
+
 /* ── TASK CREATION MODAL ──────────────────────────────── */
 #task-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:210;display:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
 #task-modal-overlay.open{display:block;}
@@ -973,6 +989,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <div class="daily-read-label">Today's Reading</div>
         <div class="daily-read-text" id="daily-read-text"></div>
       </div>
+      <!-- BIRTH DATA NUDGE (hidden when data is complete) -->
+      <div class="dash-section" id="birth-nudge-wrap" style="display:none;padding-top:0;"></div>
       <!-- ENERGY INDICATORS -->
       <div class="energy-indicators-wrap">
         <div class="energy-indicators" id="energy-indicators"></div>
@@ -1237,7 +1255,7 @@ function computeNatalChart(){
     const tz=getTzOffset(birth.timezone,birthDate);
     const useTime=!!(birth.timeKnown&&birth.time);
     const natal=Ephemeris.calculate(birthDate,tz,birthLoc,useTime);
-    natalChart={positions:natal.positions,ascDegree:natal.ascDegree,mcDegree:natal.mcDegree,jd:natal.jd};
+    natalChart={positions:natal.positions,ascDegree:natal.ascDegree,mcDegree:natal.mcDegree,houses:natal.houses,jd:natal.jd};
     try{localStorage.setItem('celestial_natal',JSON.stringify(natalChart));}catch(e){}
     return natalChart;
   }catch(e){return null;}
@@ -2658,6 +2676,7 @@ function openSettingsSheet(){
   const html=`
     <div class="sheet-section-title">Your Data</div>
     <div class="sheet-body">
+      ${row('Birth Chart',birth?'View your natal positions':'No data yet','openBirthChartSheet()','View')}
       ${row('Birth Data',birthSummary,'resetBirthData()','Re-enter')}
       ${row('Current Location',loc?loc.name:'Not set','closeSheet();openLocationSheet()','Change')}
       ${row('Cycle Tracking',cycleSummary,'openCycleSettings()','Edit')}
@@ -2673,6 +2692,93 @@ function openSettingsSheet(){
     </div>`;
 
   openSheet(html);
+}
+
+function lonToSign(lon){
+  const S=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+  return S[Math.floor(((lon%360)+360)%360/30)];
+}
+function lonToDegMin(lon){
+  const d=((lon%360)+360)%360%30;
+  const deg=Math.floor(d);
+  const min=Math.floor((d-deg)*60);
+  return`${deg}°${min.toString().padStart(2,'0')}'`;
+}
+
+function openBirthChartSheet(){
+  const natal=loadNatalChart();
+  const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+  if(!natal||!birth){
+    openSheet(`<div class="sheet-section-title">Birth Chart</div><div class="sheet-body" style="font-size:13px;color:var(--cream-dim);">No birth data yet. <span style="color:var(--gold);cursor:pointer;" onclick="closeSheet();resetBirthData();">Add birth data →</span></div>`);
+    return;
+  }
+  // Header summary
+  const d=birth.date||{};
+  const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dateStr=d.year?`${MONTHS[(d.month||1)-1]} ${d.day}, ${d.year}`:'Unknown date';
+  const timeStr=birth.timeKnown&&birth.time?birth.time:'Time unknown';
+  const locStr=birth.cityName||'Unknown location';
+  const timeNote=!birth.timeKnown?'<div style="margin-top:6px;font-size:11px;color:var(--cream-faint);font-style:italic;">Birth time unknown — house placements and Ascendant require an exact time.</div>':'';
+
+  // Planet rows
+  const CHART_PLANETS=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Chiron'];
+  let planetRows='';
+  for(const key of CHART_PLANETS){
+    const np=natal.positions[key];
+    if(!np)continue;
+    const planet=PLANETS.find(p=>p.key===key);
+    const sym=planet?.symbol||key[0];
+    const rx=np.retrograde?' <span style="font-size:10px;color:var(--cream-faint);">℞</span>':'';
+    const houseNum=natal.houses&&natal.houses[key]?natal.houses[key]:null;
+    const houseStr=houseNum?`<span class="bcs-house"> · H${houseNum}</span>`:'';
+    planetRows+=`<div class="bcs-row" onclick="openPlanetSheet('${key}')">
+      <div class="bcs-symbol">${sym}</div>
+      <div class="bcs-info">
+        <div class="bcs-name">${key}${rx}</div>
+        <div class="bcs-pos">${lonToDegMin(np.lon)} ${np.sign}${houseStr}</div>
+      </div>
+    </div>`;
+  }
+
+  // Angles (ASC / MC)
+  let anglesHtml='';
+  if(natal.ascDegree!=null){
+    const ascSign=lonToSign(natal.ascDegree);
+    const ascPos=lonToDegMin(natal.ascDegree);
+    anglesHtml+=`<div class="bcs-row"><div class="bcs-symbol" style="font-size:11px;letter-spacing:.04em;">ASC</div><div class="bcs-info"><div class="bcs-name">Ascendant</div><div class="bcs-pos">${ascPos} ${ascSign}</div></div></div>`;
+  }
+  if(natal.mcDegree!=null){
+    const mcSign=lonToSign(natal.mcDegree);
+    const mcPos=lonToDegMin(natal.mcDegree);
+    anglesHtml+=`<div class="bcs-row"><div class="bcs-symbol" style="font-size:11px;letter-spacing:.04em;">MC</div><div class="bcs-info"><div class="bcs-name">Midheaven</div><div class="bcs-pos">${mcPos} ${mcSign}</div></div></div>`;
+  }
+  const anglesSection=anglesHtml?`<div class="sheet-section-title" style="margin-top:16px;">Angles</div><div class="sheet-body">${anglesHtml}</div>`:'';
+
+  // Active personal transits today
+  const sky=todaySky||getSkyData(new Date(),true);
+  const transits=getPersonalTransits(sky);
+  let transitHtml='';
+  if(transits.length){
+    transitHtml='<div class="sheet-section-title" style="margin-top:16px;">Active Transits Today</div><div class="sheet-body">';
+    transits.slice(0,5).forEach(t=>{
+      const color=t.harmony==='positive'?'#7dcf9e':t.harmony==='negative'?'#d47070':'var(--cream-dim)';
+      const hint=NATAL_ASP_HINTS[t.transitPlanet]?.[t.harmony]||'';
+      transitHtml+=`<div style="margin-bottom:10px;"><span style="color:${color};">${t.symbol} ${mythLabel(t.transitPlanet)} ${t.name}s natal ${mythLabel(t.natalPlanet)}</span><div style="font-size:11px;color:var(--cream-dim);margin-top:2px;line-height:1.5;">${hint?hint+'.':''} <span style="color:var(--cream-faint);">${t.diff.toFixed(1)}° orb</span></div></div>`;
+    });
+    transitHtml+='</div>';
+  } else {
+    transitHtml='<div class="sheet-section-title" style="margin-top:16px;">Active Transits Today</div><div class="sheet-body" style="font-size:12px;color:var(--cream-dim);">No tight transits to natal planets within orb today.</div>';
+  }
+
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:4px;">Birth Chart</div>
+    <div style="font-size:12px;color:var(--cream-dim);line-height:1.7;margin-bottom:16px;">${dateStr} · ${timeStr}<br>${locStr}${timeNote}</div>
+    <div class="sheet-section-title">Natal Positions</div>
+    <div class="sheet-body" style="font-size:12px;color:var(--cream-faint);margin-bottom:8px;">Tap any planet to see how it's being activated today.</div>
+    <div class="sheet-body">${planetRows}</div>
+    ${anglesSection}
+    ${transitHtml}
+  `);
 }
 
 function resetBirthData(){
@@ -3591,6 +3697,36 @@ function renderCycleCard(){
 }
 
 // ── Orchestrator ──────────────────────────────────────
+function renderBirthNudge(){
+  const wrap=document.getElementById('birth-nudge-wrap');
+  if(!wrap)return;
+  const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+  if(!birth){
+    wrap.style.display='block';
+    wrap.innerHTML=`<div class="birth-nudge-card">
+      <div class="birth-nudge-icon">☽</div>
+      <div class="birth-nudge-body">
+        <div class="birth-nudge-title">Personalize your timing</div>
+        <div class="birth-nudge-desc">Add your birth data to see how the sky speaks to you personally — transits to your natal chart, tailored daily reads, and planetary timing that's uniquely yours.</div>
+        <button class="birth-nudge-btn" onclick="resetBirthData()">Add Birth Data →</button>
+      </div>
+    </div>`;
+  } else if(!birth.timeKnown||!birth.time){
+    wrap.style.display='block';
+    wrap.innerHTML=`<div class="birth-nudge-card">
+      <div class="birth-nudge-icon">⊙</div>
+      <div class="birth-nudge-body">
+        <div class="birth-nudge-title">Enhance your chart accuracy</div>
+        <div class="birth-nudge-desc">Adding your exact birth time unlocks precise house placements — the layer of the chart that shows where each planet's energy lands in your daily life.</div>
+        <button class="birth-nudge-btn" onclick="resetBirthData()">Add Birth Time →</button>
+      </div>
+    </div>`;
+  } else {
+    wrap.style.display='none';
+    wrap.innerHTML='';
+  }
+}
+
 function renderTodayScreen(){
   const now=new Date();
   const skyData=getSkyData(now,true);
@@ -3599,6 +3735,7 @@ function renderTodayScreen(){
 
   document.getElementById('today-greeting').textContent=generateGreeting(skyData,catScores);
   document.getElementById('daily-read-text').innerHTML=generateDailyRead(skyData,catScores);
+  renderBirthNudge();
   renderEnergyIndicators(catScores,skyData);
   renderSurfacedTasks();
   renderLunarSnapshot(skyData);
