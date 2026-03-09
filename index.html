@@ -882,6 +882,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .bcs-name{font-size:13px;color:var(--cream);line-height:1.2;}
 .bcs-pos{font-size:11px;color:var(--cream-dim);margin-top:2px;}
 .bcs-house{font-size:10px;color:var(--cream-faint);}
+/* ── TASK TAGS ────────────────────────────────────────── */
+.task-tag{display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border);color:var(--cream-dim);margin:2px 3px 2px 0;}
 
 /* ── TASK CREATION MODAL ──────────────────────────────── */
 #task-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:210;display:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
@@ -1849,7 +1851,7 @@ function buildWindowData(favorable){
   for(let i=1;i<=60&&results.length<6;i++){
     const date=new Date(today);date.setDate(today.getDate()+i);
     const sky=getSkyData(date);
-    const score=Ephemeris.scoreDay(sky,catIdx);
+    const score=scoreDay(sky,catIdx);
     const isFav=score>=2&&score<=3;
     const isBad=score>=4;
     if(favorable&&!isFav)continue;
@@ -1970,7 +1972,7 @@ function renderZodiacWheel(){
 // ═══════════════════════════════════════════════════════
 function renderLearnScreen(){
   const planetsEl=document.getElementById('learn-planets');
-  if(planetsEl&&!planetsEl.children.length){PLANETS.forEach(p=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${p.symbol}</div><div><div class="learn-item-name">${p.key}</div><div class="learn-item-sub">${p.rules.split(',').slice(0,2).join(',')}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>{const skyL=todaySky||getSkyData(new Date(),true);const pos=skyL.positions[p.key];const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';let dynCurrent=p.detail;if(pos){const sm=SIGN_MODES[pos.sign]||'';const dm=PLANET_DOMAINS[p.key]||'energy';const rxN=pos.retrograde?' Currently retrograde — review rather than initiate.':'';dynCurrent=`${p.key} is in ${pos.sign}${sm?`, bringing its ${dm} ${sm}`:''}.${rxN}`;}openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr}</div></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div><div class="sheet-section-title">Detail</div><div class="sheet-body">${p.detail}</div><div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${dynCurrent}</div>`);};planetsEl.appendChild(item);});}
+  if(planetsEl&&!planetsEl.children.length){PLANETS.forEach(p=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${p.symbol}</div><div><div class="learn-item-name">${p.key}</div><div class="learn-item-sub">${p.rules.split(',').slice(0,2).join(',')}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>openPlanetSheet(p.key);planetsEl.appendChild(item);});}
   const signsEl=document.getElementById('learn-signs');
   if(signsEl&&!signsEl.children.length){ZODIAC_SIGNS.forEach((s,i)=>{const parts=s.split(' ');const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol" style="font-size:16px;">${parts[0]}</div><div><div class="learn-item-name">${parts[1]}</div><div class="learn-item-sub">${ZODIAC_DESCS[i].split('.')[0]}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>openSheet(`<div style="margin-bottom:16px;"><div style="font-size:40px;margin-bottom:8px;">${parts[0]}</div><div class="sheet-planet-title">${parts[1]}</div></div><div class="sheet-section-title">Traits & Themes</div><div class="sheet-body">${ZODIAC_DESCS[i]}</div>`);signsEl.appendChild(item);});}
   const housesEl=document.getElementById('learn-houses');
@@ -3006,6 +3008,46 @@ function deferTask(id){
   renderSurfacedTasks();
 }
 
+function openTaskDetail(id){
+  const task=loadTasks().find(t=>t.id===id);
+  if(!task)return;
+  const hist=task.history||[];
+  const cutoff=Date.now()-7*86400000;
+  const recent=hist.filter(h=>new Date(h.date+' 00:00:00').getTime()>=cutoff);
+  const completions=recent.filter(h=>h.action==='completed').length;
+  const deferrals=recent.filter(h=>h.action==='deferred').length;
+  const typeLabels={creative:'Creative',analytical:'Analytical',communicative:'Communicative',administrative:'Administrative',physical:'Physical',reflective:'Reflective'};
+  const energyLabels={'low':'Low Energy','focused':'Focused','deep-work':'Deep Work'};
+  const weightLabels={light:'Light',moderate:'Moderate',heavy:'Heavy'};
+  const dlHtml=task.deadline?`<div style="margin-top:10px;font-size:12px;color:var(--cream-dim);">${fmtDeadline(task.deadline)}</div>`:'';
+  const repeatLabel=task.repeating&&task.repeating!=='none'?`<span class="task-tag">${task.repeating.charAt(0).toUpperCase()+task.repeating.slice(1)}</span>`:'';
+  const momentumHtml=hist.length?`<div style="margin-top:16px;"><div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-faint);margin-bottom:6px;">Last 7 Days</div><div style="font-size:12px;color:var(--cream-dim);">${completions} completion${completions!==1?'s':''} · ${deferrals} deferral${deferrals!==1?'s':''}</div></div>`:'';
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:4px;">${escHtml(task.title)}</div>
+    ${dlHtml}
+    <div style="margin-top:12px;">
+      <span class="task-tag">${typeLabels[task.taskType]||task.taskType}</span>
+      <span class="task-tag">${energyLabels[task.energyRequired]||task.energyRequired}</span>
+      <span class="task-tag">${weightLabels[task.emotionalWeight]||task.emotionalWeight}</span>
+      ${repeatLabel}
+    </div>
+    ${momentumHtml}
+    <div style="margin-top:24px;display:flex;gap:10px;">
+      <button class="sheet-cta" style="flex:1;margin-top:0;" onclick="toggleTaskComplete('${escHtml(task.id)}');closeSheet();">${task.completed?'Mark Incomplete':'Mark Complete'}</button>
+    </div>
+    <div style="margin-top:10px;text-align:center;">
+      <span onclick="deleteTask('${escHtml(task.id)}');closeSheet();" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Remove task</span>
+    </div>
+  `);
+}
+
+function deleteTask(id){
+  if(!confirm('Remove this task?'))return;
+  saveTasks(loadTasks().filter(t=>t.id!==id));
+  renderSurfacedTasks();
+  updateAllTasksSheet();
+}
+
 function getAdaptiveBias(task){
   const hist=task.history||[];
   const cutoff=Date.now()-7*86400000;
@@ -3077,9 +3119,13 @@ function surfaceTasks(){
   const catScores=skyData?[0,1,2,3].map(c=>scoreDay(skyData,c)):[0,0,0,0];
   const phase=skyData?skyData.phase:0.5;
   const cyclePhase=getCyclePhase();
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'{}');
   const typeToCategory={creative:3,analytical:2,communicative:1,administrative:0,physical:2,reflective:3};
   // catScore values: 0=neutral,1=slight,2=favorable,3=optimal,4=caution,5=challenging
   const catMap={0:0,1:1,2:2,3:3,4:-1,5:-2};
+  // Season → which life-area category gets a surfacing boost
+  const seasonCatBoost={building:0,healing:3,navigating:1,clarity:2,deepening:1,creating:3};
+  const seasonCat=seasonCatBoost[prefs.season]??null;
   return tasks
     .filter(t=>t.deferredDate!==todayStr)
     .filter(t=>!t.completed||(t.repeating&&t.repeating!=='none'&&t.completedDate!==todayStr))
@@ -3107,6 +3153,18 @@ function surfaceTasks(){
         else if(cyclePhase==='ovulatory'){if(['creative','communicative'].includes(t.taskType))score+=1;}
         else if(cyclePhase==='luteal'){if(['analytical','reflective'].includes(t.taskType))score+=0.5;if(t.emotionalWeight==='heavy')score-=0.5;}
       }
+      // Work style preference
+      if(prefs.workStyle==='deep-focus'){
+        if(t.energyRequired==='deep-work')score+=0.75;
+        if(['analytical','creative'].includes(t.taskType))score+=0.5;
+      } else if(prefs.workStyle==='collaborative'){
+        if(t.taskType==='communicative')score+=0.75;
+      } else if(prefs.workStyle==='short-bursts'){
+        if(t.energyRequired==='low')score+=0.5;
+        if(t.energyRequired==='deep-work')score-=0.25;
+      }
+      // Life season — boost tasks aligned with user's current chapter
+      if(seasonCat!==null&&cat===seasonCat)score+=0.5;
       // Deadline urgency
       if(t.deadline){
         const daysUntil=Math.floor((new Date(t.deadline+' 00:00:00')-new Date(todayStr+' 00:00:00'))/(86400000));
@@ -3202,7 +3260,7 @@ function renderSurfacedTasks(){
     const deferBtn=(!isFaded&&!task.completed)?`<div class="stc-defer" title="Not today" onclick="deferTask('${escHtml(task.id)}');event.stopPropagation();">›</div>`:'';
     return`<div class="surfaced-task-card${fadeClass}" ${tapAttr}>
       <div class="stc-check${task.completed?' done':''}" ${checkClick}></div>
-      <div class="stc-body">
+      <div class="stc-body" ${!isFaded?`onclick="openTaskDetail('${escHtml(task.id)}');event.stopPropagation();" style="cursor:pointer;"`:''}>
         <div class="stc-title${task.completed?' done':''}">${escHtml(task.title)}</div>
         ${dlHtml}
         ${!isFaded?`<div class="stc-reason">${reason}</div>`:''}
@@ -3369,9 +3427,10 @@ function showAllTasks(){
   if(active.length){
     active.forEach(t=>{
       const dl=t.deadline?`<div style="font-size:11px;color:var(--cream-dim);margin-top:3px;">${fmtDeadline(t.deadline)}</div>`:'';
-      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:flex-start;">
-        <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();" style="margin-top:2px;flex-shrink:0;"></div>
-        <div><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
+      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:center;">
+        <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();" style="margin-top:0;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;"><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
+        <div onclick="deleteTask('${escHtml(t.id)}')" style="font-size:16px;color:var(--cream-faint);cursor:pointer;padding:4px 0 4px 8px;flex-shrink:0;" title="Remove task">✕</div>
       </div>`;
     });
   }
@@ -3859,7 +3918,7 @@ function buildMorningBriefText() {
   try {
     const sky = getSkyData(new Date(), true);
     const prefs = JSON.parse(localStorage.getItem('celestial_prefs') || '{}');
-    const cat = {finance:0,communication:1,'mind-body':2,spirit:3}[prefs.cultivating] ?? 0;
+    const cat = {building:0,healing:3,navigating:1,clarity:2,deepening:1,creating:3}[prefs.season] ?? 0;
     const score = scoreDay(sky, cat);
     const quality = score <= 2 ? 'flowing' : score === 3 ? 'neutral' : 'tense';
     const phase = Ephemeris.lunarPhaseName(sky.positions.Moon?.lon, sky.positions.Sun?.lon);
@@ -3905,7 +3964,15 @@ loadNatalChart(); // compute + cache natal positions before first render
 updateDateTime();
 setInterval(updateDateTime,30000);
 registerServiceWorker().then(() => maybeRequestNotifPermission());
+let _lastRenderDate=new Date().toDateString();
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&new Date().toDateString()!==_lastRenderDate){
+    _lastRenderDate=new Date().toDateString();
+    renderTodayScreen();
+  }
+});
 renderTodayScreen();
+_lastRenderDate=new Date().toDateString();
 </script>
 </body>
 </html>
