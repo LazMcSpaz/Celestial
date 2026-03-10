@@ -11,6 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // EPHEMERIS ENGINE — Swiss-quality planetary calculations
@@ -863,7 +864,29 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .stc-title.done{text-decoration:line-through;color:var(--cream-dim);}
 .stc-deadline{font-size:11px;color:var(--cream-dim);margin-bottom:3px;}
 .stc-reason{font-size:11px;color:var(--cream-dim);font-style:italic;line-height:1.4;}
+.stc-defer{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--cream-faint);font-size:17px;cursor:pointer;flex-shrink:0;margin-top:-2px;border-radius:50%;transition:color .15s;}
+.stc-defer:active{color:var(--cream-dim);}
+#app-toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--surface-2,#2a2520);color:var(--cream);font-size:13px;letter-spacing:.04em;padding:10px 20px;border-radius:20px;border:1px solid var(--border);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:9999;white-space:nowrap;}
+#app-toast.visible{opacity:1;transform:translateX(-50%) translateY(0);}
 .surfaced-see-all{text-align:center;padding:6px 20px 14px;font-size:12px;color:var(--gold);cursor:pointer;letter-spacing:.05em;}
+
+/* ── BIRTH NUDGE ──────────────────────────────────────── */
+.birth-nudge-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start;}
+.birth-nudge-icon{font-size:22px;flex-shrink:0;margin-top:1px;opacity:.75;}
+.birth-nudge-body{flex:1;min-width:0;}
+.birth-nudge-title{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--cream);margin-bottom:5px;}
+.birth-nudge-desc{font-size:12px;color:var(--cream-dim);line-height:1.6;margin-bottom:10px;}
+.birth-nudge-btn{background:transparent;border:1px solid var(--gold);color:var(--gold);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:20px;cursor:pointer;}
+/* ── BIRTH CHART SHEET ────────────────────────────────── */
+.bcs-row{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border-dim);cursor:pointer;}
+.bcs-row:last-child{border-bottom:none;}
+.bcs-symbol{width:26px;text-align:center;font-size:16px;color:var(--gold);flex-shrink:0;}
+.bcs-info{flex:1;min-width:0;}
+.bcs-name{font-size:13px;color:var(--cream);line-height:1.2;}
+.bcs-pos{font-size:11px;color:var(--cream-dim);margin-top:2px;}
+.bcs-house{font-size:10px;color:var(--cream-faint);}
+/* ── TASK TAGS ────────────────────────────────────────── */
+.task-tag{display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border);color:var(--cream-dim);margin:2px 3px 2px 0;}
 
 /* ── TASK CREATION MODAL ──────────────────────────────── */
 #task-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:210;display:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
@@ -958,6 +981,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="app-date" id="header-date">Loading...</div>
         <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Change location">📍</div>
+        <div id="account-btn" onclick="openAuthSheet()" style="cursor:pointer;color:var(--cream-dim);font-size:15px;padding:4px;" title="Account">◯</div>
         <div onclick="openSettingsSheet()" style="cursor:pointer;color:var(--cream-dim);font-size:15px;padding:4px;" title="Settings">⚙</div>
       </div>
     </div>
@@ -971,6 +995,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <div class="daily-read-label">Today's Reading</div>
         <div class="daily-read-text" id="daily-read-text"></div>
       </div>
+      <!-- BIRTH DATA NUDGE (hidden when data is complete) -->
+      <div class="dash-section" id="birth-nudge-wrap" style="display:none;padding-top:0;"></div>
       <!-- ENERGY INDICATORS -->
       <div class="energy-indicators-wrap">
         <div class="energy-indicators" id="energy-indicators"></div>
@@ -1235,7 +1261,7 @@ function computeNatalChart(){
     const tz=getTzOffset(birth.timezone,birthDate);
     const useTime=!!(birth.timeKnown&&birth.time);
     const natal=Ephemeris.calculate(birthDate,tz,birthLoc,useTime);
-    natalChart={positions:natal.positions,ascDegree:natal.ascDegree,mcDegree:natal.mcDegree,jd:natal.jd};
+    natalChart={positions:natal.positions,ascDegree:natal.ascDegree,mcDegree:natal.mcDegree,houses:natal.houses,jd:natal.jd};
     try{localStorage.setItem('celestial_natal',JSON.stringify(natalChart));}catch(e){}
     return natalChart;
   }catch(e){return null;}
@@ -1595,6 +1621,19 @@ function generateCategoryPicture(sky,cat){
   return sentences.join(' ')||`The sky is broadly neutral for ${catIntro[cat]} today.`;
 }
 // ═══════════════════════════════════════════════════════
+// SUPABASE CLIENT
+// Replace the two placeholder strings with your project URL and anon key
+// from Supabase dashboard → Settings → API
+// ═══════════════════════════════════════════════════════
+const SUPA_URL = 'https://ynwsqucnptxcwmhkwozq.supabase.co';
+const SUPA_KEY = 'ynwsqucnptxcwmhkwozq';
+const supa = (typeof supabase !== 'undefined')
+  ? supabase.createClient(SUPA_URL, SUPA_KEY)
+  : null; // graceful fallback when CDN unavailable (e.g. offline, test runner)
+let _currentUser = null;
+let _syncingFromCloud = false; // guard: prevents saveTasks → cloud → saveTasks loop
+
+// ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
 let activeScreen='today';
@@ -1637,6 +1676,13 @@ function updateDateTime(){
 // ═══════════════════════════════════════════════════════
 function openSheet(html){document.getElementById('sheet-content').innerHTML=html;document.getElementById('sheet-overlay').classList.add('visible');document.getElementById('bottom-sheet').classList.add('open');}
 function closeSheet(){document.getElementById('sheet-overlay').classList.remove('visible');document.getElementById('bottom-sheet').classList.remove('open');}
+
+function showToast(msg){
+  let t=document.getElementById('app-toast');
+  if(!t){t=document.createElement('div');t.id='app-toast';document.body.appendChild(t);}
+  t.textContent=msg;t.classList.add('visible');
+  clearTimeout(t._tid);t._tid=setTimeout(()=>t.classList.remove('visible'),2200);
+}
 
 function openPlanetSheet(key){
   const p=PLANETS.find(x=>x.key===key);if(!p)return;
@@ -1829,7 +1875,7 @@ function buildWindowData(favorable){
   for(let i=1;i<=60&&results.length<6;i++){
     const date=new Date(today);date.setDate(today.getDate()+i);
     const sky=getSkyData(date);
-    const score=Ephemeris.scoreDay(sky,catIdx);
+    const score=scoreDay(sky,catIdx);
     const isFav=score>=2&&score<=3;
     const isBad=score>=4;
     if(favorable&&!isFav)continue;
@@ -1950,7 +1996,7 @@ function renderZodiacWheel(){
 // ═══════════════════════════════════════════════════════
 function renderLearnScreen(){
   const planetsEl=document.getElementById('learn-planets');
-  if(planetsEl&&!planetsEl.children.length){PLANETS.forEach(p=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${p.symbol}</div><div><div class="learn-item-name">${p.key}</div><div class="learn-item-sub">${p.rules.split(',').slice(0,2).join(',')}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>{const skyL=todaySky||getSkyData(new Date(),true);const pos=skyL.positions[p.key];const posStr=pos?`${Math.floor(pos.degree)}° ${pos.sign}`:'—';let dynCurrent=p.detail;if(pos){const sm=SIGN_MODES[pos.sign]||'';const dm=PLANET_DOMAINS[p.key]||'energy';const rxN=pos.retrograde?' Currently retrograde — review rather than initiate.':'';dynCurrent=`${p.key} is in ${pos.sign}${sm?`, bringing its ${dm} ${sm}`:''}.${rxN}`;}openSheet(`<div class="sheet-planet-header"><div class="sheet-planet-big">${p.symbol}</div><div><div class="sheet-planet-title">${p.key}</div><div class="sheet-planet-subtitle">${posStr}</div></div></div><div class="sheet-section-title">What It Rules</div><div class="sheet-body">${p.rules}</div><div class="sheet-section-title">Detail</div><div class="sheet-body">${p.detail}</div><div class="sheet-section-title">In The Sky Now</div><div class="sheet-body">${dynCurrent}</div>`);};planetsEl.appendChild(item);});}
+  if(planetsEl&&!planetsEl.children.length){PLANETS.forEach(p=>{const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol">${p.symbol}</div><div><div class="learn-item-name">${p.key}</div><div class="learn-item-sub">${p.rules.split(',').slice(0,2).join(',')}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>openPlanetSheet(p.key);planetsEl.appendChild(item);});}
   const signsEl=document.getElementById('learn-signs');
   if(signsEl&&!signsEl.children.length){ZODIAC_SIGNS.forEach((s,i)=>{const parts=s.split(' ');const item=document.createElement('div');item.className='learn-item';item.innerHTML=`<div class="learn-item-left"><div class="learn-symbol" style="font-size:16px;">${parts[0]}</div><div><div class="learn-item-name">${parts[1]}</div><div class="learn-item-sub">${ZODIAC_DESCS[i].split('.')[0]}</div></div></div><div class="learn-arr">›</div>`;item.onclick=()=>openSheet(`<div style="margin-bottom:16px;"><div style="font-size:40px;margin-bottom:8px;">${parts[0]}</div><div class="sheet-planet-title">${parts[1]}</div></div><div class="sheet-section-title">Traits & Themes</div><div class="sheet-body">${ZODIAC_DESCS[i]}</div>`);signsEl.appendChild(item);});}
   const housesEl=document.getElementById('learn-houses');
@@ -2178,6 +2224,7 @@ function finishOnboarding(){
   try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
   natalChart=null; // clear in-memory cache so computeNatalChart re-reads fresh birth data
   computeNatalChart(); // pre-compute and cache natal chart while user sees the welcome screen
+  syncPrefsToCloud(); // fire-and-forget; no-op if not signed in
   hideOnboarding();
   maybeShowTourPrompt();
 }
@@ -2656,6 +2703,7 @@ function openSettingsSheet(){
   const html=`
     <div class="sheet-section-title">Your Data</div>
     <div class="sheet-body">
+      ${row('Birth Chart',birth?'View your natal positions':'No data yet','openBirthChartSheet()','View')}
       ${row('Birth Data',birthSummary,'resetBirthData()','Re-enter')}
       ${row('Current Location',loc?loc.name:'Not set','closeSheet();openLocationSheet()','Change')}
       ${row('Cycle Tracking',cycleSummary,'openCycleSettings()','Edit')}
@@ -2671,6 +2719,93 @@ function openSettingsSheet(){
     </div>`;
 
   openSheet(html);
+}
+
+function lonToSign(lon){
+  const S=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+  return S[Math.floor(((lon%360)+360)%360/30)];
+}
+function lonToDegMin(lon){
+  const d=((lon%360)+360)%360%30;
+  const deg=Math.floor(d);
+  const min=Math.floor((d-deg)*60);
+  return`${deg}°${min.toString().padStart(2,'0')}'`;
+}
+
+function openBirthChartSheet(){
+  const natal=loadNatalChart();
+  const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+  if(!natal||!birth){
+    openSheet(`<div class="sheet-section-title">Birth Chart</div><div class="sheet-body" style="font-size:13px;color:var(--cream-dim);">No birth data yet. <span style="color:var(--gold);cursor:pointer;" onclick="closeSheet();resetBirthData();">Add birth data →</span></div>`);
+    return;
+  }
+  // Header summary
+  const d=birth.date||{};
+  const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dateStr=d.year?`${MONTHS[(d.month||1)-1]} ${d.day}, ${d.year}`:'Unknown date';
+  const timeStr=birth.timeKnown&&birth.time?birth.time:'Time unknown';
+  const locStr=birth.cityName||'Unknown location';
+  const timeNote=!birth.timeKnown?'<div style="margin-top:6px;font-size:11px;color:var(--cream-faint);font-style:italic;">Birth time unknown — house placements and Ascendant require an exact time.</div>':'';
+
+  // Planet rows
+  const CHART_PLANETS=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Chiron'];
+  let planetRows='';
+  for(const key of CHART_PLANETS){
+    const np=natal.positions[key];
+    if(!np)continue;
+    const planet=PLANETS.find(p=>p.key===key);
+    const sym=planet?.symbol||key[0];
+    const rx=np.retrograde?' <span style="font-size:10px;color:var(--cream-faint);">℞</span>':'';
+    const houseNum=natal.houses&&natal.houses[key]?natal.houses[key]:null;
+    const houseStr=houseNum?`<span class="bcs-house"> · H${houseNum}</span>`:'';
+    planetRows+=`<div class="bcs-row" onclick="openPlanetSheet('${key}')">
+      <div class="bcs-symbol">${sym}</div>
+      <div class="bcs-info">
+        <div class="bcs-name">${key}${rx}</div>
+        <div class="bcs-pos">${lonToDegMin(np.lon)} ${np.sign}${houseStr}</div>
+      </div>
+    </div>`;
+  }
+
+  // Angles (ASC / MC)
+  let anglesHtml='';
+  if(natal.ascDegree!=null){
+    const ascSign=lonToSign(natal.ascDegree);
+    const ascPos=lonToDegMin(natal.ascDegree);
+    anglesHtml+=`<div class="bcs-row"><div class="bcs-symbol" style="font-size:11px;letter-spacing:.04em;">ASC</div><div class="bcs-info"><div class="bcs-name">Ascendant</div><div class="bcs-pos">${ascPos} ${ascSign}</div></div></div>`;
+  }
+  if(natal.mcDegree!=null){
+    const mcSign=lonToSign(natal.mcDegree);
+    const mcPos=lonToDegMin(natal.mcDegree);
+    anglesHtml+=`<div class="bcs-row"><div class="bcs-symbol" style="font-size:11px;letter-spacing:.04em;">MC</div><div class="bcs-info"><div class="bcs-name">Midheaven</div><div class="bcs-pos">${mcPos} ${mcSign}</div></div></div>`;
+  }
+  const anglesSection=anglesHtml?`<div class="sheet-section-title" style="margin-top:16px;">Angles</div><div class="sheet-body">${anglesHtml}</div>`:'';
+
+  // Active personal transits today
+  const sky=todaySky||getSkyData(new Date(),true);
+  const transits=getPersonalTransits(sky);
+  let transitHtml='';
+  if(transits.length){
+    transitHtml='<div class="sheet-section-title" style="margin-top:16px;">Active Transits Today</div><div class="sheet-body">';
+    transits.slice(0,5).forEach(t=>{
+      const color=t.harmony==='positive'?'#7dcf9e':t.harmony==='negative'?'#d47070':'var(--cream-dim)';
+      const hint=NATAL_ASP_HINTS[t.transitPlanet]?.[t.harmony]||'';
+      transitHtml+=`<div style="margin-bottom:10px;"><span style="color:${color};">${t.symbol} ${mythLabel(t.transitPlanet)} ${t.name}s natal ${mythLabel(t.natalPlanet)}</span><div style="font-size:11px;color:var(--cream-dim);margin-top:2px;line-height:1.5;">${hint?hint+'.':''} <span style="color:var(--cream-faint);">${t.diff.toFixed(1)}° orb</span></div></div>`;
+    });
+    transitHtml+='</div>';
+  } else {
+    transitHtml='<div class="sheet-section-title" style="margin-top:16px;">Active Transits Today</div><div class="sheet-body" style="font-size:12px;color:var(--cream-dim);">No tight transits to natal planets within orb today.</div>';
+  }
+
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:4px;">Birth Chart</div>
+    <div style="font-size:12px;color:var(--cream-dim);line-height:1.7;margin-bottom:16px;">${dateStr} · ${timeStr}<br>${locStr}${timeNote}</div>
+    <div class="sheet-section-title">Natal Positions</div>
+    <div class="sheet-body" style="font-size:12px;color:var(--cream-faint);margin-bottom:8px;">Tap any planet to see how it's being activated today.</div>
+    <div class="sheet-body">${planetRows}</div>
+    ${anglesSection}
+    ${transitHtml}
+  `);
 }
 
 function resetBirthData(){
@@ -2843,6 +2978,92 @@ document.getElementById('bottom-sheet').addEventListener('touchstart',e=>{sheetS
 document.getElementById('bottom-sheet').addEventListener('touchend',e=>{if(e.changedTouches[0].clientY-sheetStartY>60)closeSheet();},{passive:true});
 
 // ═══════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════
+function updateAccountBtn(){
+  const btn=document.getElementById('account-btn');
+  if(!btn)return;
+  if(_currentUser){
+    btn.textContent='●';
+    btn.style.color='var(--gold)';
+    btn.title='Account (signed in)';
+  } else {
+    btn.textContent='◯';
+    btn.style.color='var(--cream-dim)';
+    btn.title='Sign in';
+  }
+}
+
+function openAuthSheet(){
+  if(_currentUser){
+    // Already signed in — show account info + sign-out
+    openSheet(`
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:6px;">Your Account</div>
+      <div style="font-size:13px;color:var(--cream-dim);margin-bottom:24px;">${escHtml(_currentUser.email)}</div>
+      <button class="sheet-cta" style="margin-top:0;" onclick="signOut()">Sign out</button>
+    `);
+    return;
+  }
+  // Not signed in — show magic link form
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:8px;">Sign in</div>
+    <div style="font-size:13px;color:var(--cream-dim);margin-bottom:20px;line-height:1.6;">Enter your email and we'll send you a magic link. No password needed.</div>
+    <input id="auth-email-input" type="email" placeholder="your@email.com"
+      style="width:100%;box-sizing:border-box;background:var(--surface-2,#1a1714);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--cream);font-family:'Jost',sans-serif;margin-bottom:14px;outline:none;">
+    <button class="sheet-cta" style="margin-top:0;" onclick="sendMagicLink()">Send magic link</button>
+    <div style="margin-top:14px;text-align:center;">
+      <span onclick="closeSheet()" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Continue without account</span>
+    </div>
+  `);
+  setTimeout(()=>{const el=document.getElementById('auth-email-input');if(el)el.focus();},350);
+}
+
+async function sendMagicLink(){
+  if(!supa){showToast('Supabase not configured');return;}
+  const el=document.getElementById('auth-email-input');
+  const email=(el?.value||'').trim();
+  if(!email||!email.includes('@')){showToast('Enter a valid email');return;}
+  const btn=document.querySelector('#sheet-content .sheet-cta');
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  const{error}=await supa.auth.signInWithOtp({email,options:{emailRedirectTo:location.href}});
+  if(error){
+    showToast('Error: '+error.message);
+    if(btn){btn.disabled=false;btn.textContent='Send magic link';}
+  } else {
+    openSheet(`
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:8px;">Check your email</div>
+      <div style="font-size:13px;color:var(--cream-dim);line-height:1.6;">A magic link is on its way to <strong>${escHtml(email)}</strong>. Click it to sign in — this tab will update automatically.</div>
+      <div style="margin-top:20px;text-align:center;">
+        <span onclick="closeSheet()" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Dismiss</span>
+      </div>
+    `);
+  }
+}
+
+async function signOut(){
+  if(!supa)return;
+  await supa.auth.signOut();
+  _currentUser=null;
+  updateAccountBtn();
+  closeSheet();
+  showToast('Signed out');
+}
+
+async function syncPrefsToCloud(){
+  if(!supa||!_currentUser)return;
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'{}');
+  try{
+    await supa.from('profiles').upsert({
+      id:_currentUser.id,
+      chronotype:prefs.chronotype||null,
+      work_style:prefs.workStyle||null,
+      season:prefs.season||null,
+      cultivating:prefs.cultivating||null,
+    },{onConflict:'id'});
+  }catch(e){console.warn('Celestial: prefs sync failed',e);}
+}
+
+// ═══════════════════════════════════════════════════════
 // TASK SYSTEM
 // ═══════════════════════════════════════════════════════
 
@@ -2851,8 +3072,61 @@ function loadTasks(){
   try{return JSON.parse(localStorage.getItem('celestial_tasks')||'[]');}
   catch(e){return[];}
 }
-function saveTasks(tasks){localStorage.setItem('celestial_tasks',JSON.stringify(tasks));}
+function saveTasks(tasks){
+  localStorage.setItem('celestial_tasks',JSON.stringify(tasks));
+  if(_currentUser&&!_syncingFromCloud)cloudUpsertTasks(tasks);
+}
 function addTask(task){const t=loadTasks();t.push(task);saveTasks(t);}
+
+// ── Cloud task helpers ────────────────────────────────
+function _taskToRow(t){
+  return{
+    id:t.id,
+    user_id:_currentUser.id,
+    title:t.title,
+    task_type:t.taskType,
+    energy_required:t.energyRequired,
+    emotional_weight:t.emotionalWeight,
+    repeating:t.repeating||'none',
+    deadline:t.deadline||null,
+    completed:!!t.completed,
+    completed_date:t.completedDate||null,
+    deferred_date:t.deferredDate||null,
+    history:t.history||[],
+    created_at:t.createdAt,
+  };
+}
+function _rowToTask(r){
+  return{
+    id:r.id,
+    title:r.title,
+    taskType:r.task_type,
+    energyRequired:r.energy_required,
+    emotionalWeight:r.emotional_weight,
+    repeating:r.repeating,
+    deadline:r.deadline,
+    completed:r.completed,
+    completedDate:r.completed_date,
+    deferredDate:r.deferred_date,
+    history:r.history||[],
+    createdAt:r.created_at,
+  };
+}
+async function cloudUpsertTasks(tasks){
+  if(!supa||!_currentUser)return;
+  try{await supa.from('tasks').upsert(tasks.map(_taskToRow),{onConflict:'id'});}
+  catch(e){console.warn('Celestial: cloud upsert failed',e);}
+}
+async function syncTasksFromCloud(){
+  if(!supa||!_currentUser)return;
+  const{data,error}=await supa.from('tasks').select('*').eq('user_id',_currentUser.id);
+  if(error||!data)return;
+  _syncingFromCloud=true;
+  saveTasks(data.map(_rowToTask));
+  _syncingFromCloud=false;
+  renderSurfacedTasks();
+  showToast('Tasks synced');
+}
 
 function seedDefaultTasks(){
   if(localStorage.getItem('celestial_tasks_seeded'))return;
@@ -2870,9 +3144,104 @@ function seedDefaultTasks(){
 function toggleTaskComplete(id){
   const tasks=loadTasks();
   const t=tasks.find(x=>x.id===id);
-  if(t){t.completed=!t.completed;t.completedDate=t.completed?new Date().toISOString().split('T')[0]:null;}
+  const todayStr=new Date().toISOString().split('T')[0];
+  if(t){
+    t.completed=!t.completed;
+    t.completedDate=t.completed?todayStr:null;
+    if(t.completed){
+      if(!t.history)t.history=[];
+      t.history.push({date:todayStr,action:'completed'});
+      if(t.history.length>30)t.history=t.history.slice(-30);
+    }
+  }
   saveTasks(tasks);
   renderSurfacedTasks();
+  if(t)showToast(t.completed?'Task complete ✓':'Marked incomplete');
+}
+
+function deferTask(id){
+  const tasks=loadTasks();
+  const t=tasks.find(x=>x.id===id);
+  const todayStr=new Date().toISOString().split('T')[0];
+  if(t){
+    if(!t.history)t.history=[];
+    t.history.push({date:todayStr,action:'deferred'});
+    if(t.history.length>30)t.history=t.history.slice(-30);
+    t.deferredDate=todayStr;
+  }
+  saveTasks(tasks);
+  renderSurfacedTasks();
+  if(t)showToast('Deferred until tomorrow');
+}
+
+function openTaskDetail(id){
+  const task=loadTasks().find(t=>t.id===id);
+  if(!task)return;
+  const hist=task.history||[];
+  const cutoff=Date.now()-7*86400000;
+  const recent=hist.filter(h=>new Date(h.date+' 00:00:00').getTime()>=cutoff);
+  const completions=recent.filter(h=>h.action==='completed').length;
+  const deferrals=recent.filter(h=>h.action==='deferred').length;
+  const typeLabels={creative:'Creative',analytical:'Analytical',communicative:'Communicative',administrative:'Administrative',physical:'Physical',reflective:'Reflective'};
+  const energyLabels={'low':'Low Energy','focused':'Focused','deep-work':'Deep Work'};
+  const weightLabels={light:'Light',moderate:'Moderate',heavy:'Heavy'};
+  const dlHtml=task.deadline?`<div style="margin-top:10px;font-size:12px;color:var(--cream-dim);">${fmtDeadline(task.deadline)}</div>`:'';
+  const repeatLabel=task.repeating&&task.repeating!=='none'?`<span class="task-tag">${task.repeating.charAt(0).toUpperCase()+task.repeating.slice(1)}</span>`:'';
+  const momentumHtml=hist.length?`<div style="margin-top:16px;"><div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-faint);margin-bottom:6px;">Last 7 Days</div><div style="font-size:12px;color:var(--cream-dim);">${completions} completion${completions!==1?'s':''} · ${deferrals} deferral${deferrals!==1?'s':''}</div></div>`:'';
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:4px;">${escHtml(task.title)}</div>
+    ${dlHtml}
+    <div style="margin-top:12px;">
+      <span class="task-tag">${typeLabels[task.taskType]||task.taskType}</span>
+      <span class="task-tag">${energyLabels[task.energyRequired]||task.energyRequired}</span>
+      <span class="task-tag">${weightLabels[task.emotionalWeight]||task.emotionalWeight}</span>
+      ${repeatLabel}
+    </div>
+    ${momentumHtml}
+    <div style="margin-top:24px;display:flex;gap:10px;">
+      <button class="sheet-cta" style="flex:1;margin-top:0;" onclick="toggleTaskComplete('${escHtml(task.id)}');closeSheet();">${task.completed?'Mark Incomplete':'Mark Complete'}</button>
+    </div>
+    <div style="margin-top:10px;text-align:center;">
+      <span onclick="confirmDeleteTask('${escHtml(task.id)}');" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Remove task</span>
+    </div>
+  `);
+}
+
+function deleteTask(id){
+  saveTasks(loadTasks().filter(t=>t.id!==id));
+  renderSurfacedTasks();
+  updateAllTasksSheet();
+  showToast('Task removed');
+  if(supa&&_currentUser){
+    supa.from('tasks').delete().eq('id',id).eq('user_id',_currentUser.id)
+      .then(({error})=>{if(error)console.warn('Celestial: cloud delete failed',error);});
+  }
+}
+function confirmDeleteTask(id){
+  const task=loadTasks().find(t=>t.id===id);
+  if(!task)return;
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:8px;">Remove task?</div>
+    <div style="font-size:14px;color:var(--cream-dim);margin-bottom:24px;">${escHtml(task.title)}</div>
+    <div style="display:flex;gap:10px;">
+      <button class="sheet-cta" style="flex:1;margin-top:0;background:transparent;border:1px solid var(--border);color:var(--cream-dim);" onclick="openTaskDetail('${escHtml(id)}')">Keep it</button>
+      <button class="sheet-cta" style="flex:1;margin-top:0;" onclick="deleteTask('${escHtml(id)}');closeSheet();">Remove</button>
+    </div>
+  `);
+}
+
+function getAdaptiveBias(task){
+  const hist=task.history||[];
+  const cutoff=Date.now()-7*86400000;
+  const recent=hist.filter(h=>new Date(h.date+' 00:00:00').getTime()>=cutoff);
+  const completions=recent.filter(h=>h.action==='completed').length;
+  const deferrals=recent.filter(h=>h.action==='deferred').length;
+  let bias=0;
+  if(completions>=2)bias+=0.5;
+  if(completions>=4)bias+=0.5;
+  if(deferrals>=3)bias-=0.5;
+  if(deferrals>=5)bias-=0.5;
+  return Math.max(-1.5,Math.min(1.5,bias));
 }
 
 // ── Keyword heuristic ─────────────────────────────────
@@ -2932,13 +3301,18 @@ function surfaceTasks(){
   const catScores=skyData?[0,1,2,3].map(c=>scoreDay(skyData,c)):[0,0,0,0];
   const phase=skyData?skyData.phase:0.5;
   const cyclePhase=getCyclePhase();
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'{}');
   const typeToCategory={creative:3,analytical:2,communicative:1,administrative:0,physical:2,reflective:3};
   // catScore values: 0=neutral,1=slight,2=favorable,3=optimal,4=caution,5=challenging
   const catMap={0:0,1:1,2:2,3:3,4:-1,5:-2};
+  // Season → which life-area category gets a surfacing boost
+  const seasonCatBoost={building:0,healing:3,navigating:1,clarity:2,deepening:1,creating:3};
+  const seasonCat=seasonCatBoost[prefs.season]??null;
   return tasks
+    .filter(t=>t.deferredDate!==todayStr)
     .filter(t=>!t.completed||(t.repeating&&t.repeating!=='none'&&t.completedDate!==todayStr))
     .map(t=>{
-      let score=0;
+      let score=getAdaptiveBias(t);
       const cat=typeToCategory[t.taskType]??0;
       const cs=catScores[cat];
       score+=catMap[cs]??0;
@@ -2960,6 +3334,38 @@ function surfaceTasks(){
         else if(cyclePhase==='follicular')score+=0.5;
         else if(cyclePhase==='ovulatory'){if(['creative','communicative'].includes(t.taskType))score+=1;}
         else if(cyclePhase==='luteal'){if(['analytical','reflective'].includes(t.taskType))score+=0.5;if(t.emotionalWeight==='heavy')score-=0.5;}
+      }
+      // Work style preference
+      if(prefs.workStyle==='deep-focus'){
+        if(t.energyRequired==='deep-work')score+=0.75;
+        if(['analytical','creative'].includes(t.taskType))score+=0.5;
+      } else if(prefs.workStyle==='collaborative'){
+        if(t.taskType==='communicative')score+=0.75;
+      } else if(prefs.workStyle==='short-bursts'){
+        if(t.energyRequired==='low')score+=0.5;
+        if(t.energyRequired==='deep-work')score-=0.25;
+      }
+      // Life season — boost tasks aligned with user's current chapter
+      if(seasonCat!==null&&cat===seasonCat)score+=0.5;
+      // Chronotype — boost deep-work tasks during peak hours, penalize during off-peak
+      if(prefs.chronotype&&t.energyRequired==='deep-work'){
+        const h=new Date().getHours();
+        const peak={
+          'early-morning': h>=5&&h<9,
+          'morning':        h>=9&&h<13,
+          'afternoon':      h>=13&&h<17,
+          'evening':        h>=17&&h<21,
+          'late-night':     h>=21||h<2,
+        }[prefs.chronotype];
+        const offPeak={
+          'early-morning': h>=17,
+          'morning':        h>=17,
+          'afternoon':      h<9||h>=20,
+          'evening':        h<13,
+          'late-night':     h>=8&&h<16,
+        }[prefs.chronotype];
+        if(peak)score+=0.5;
+        else if(offPeak)score-=0.25;
       }
       // Deadline urgency
       if(t.deadline){
@@ -3042,7 +3448,12 @@ function renderSurfacedTasks(){
   const list=document.getElementById('surfaced-tasks-list');
   const seeAll=document.getElementById('see-all-tasks-link');
   const scored=surfaceTasks();
-  if(!scored.length){section.style.display='none';return;}
+  if(!scored.length){
+    section.style.display='block';
+    list.innerHTML=`<div style="padding:16px 0 8px;font-size:13px;color:var(--cream-dim);font-style:italic;line-height:1.6;">Nothing pressing today — the sky is clear.<br><span style="font-size:12px;color:var(--cream-faint);">Tap + to add a task, or rest in the space.</span></div>`;
+    seeAll.style.display='none';
+    return;
+  }
   section.style.display='block';
   const top=scored.slice(0,3);
   const hasMore=scored.length>3;
@@ -3053,13 +3464,15 @@ function renderSurfacedTasks(){
     const fadeClass=isFaded?' stc-faded':'';
     const tapAttr=isFaded?`onclick="showAllTasks()"`:'' ;
     const checkClick=isFaded?`onclick="showAllTasks()"`:`onclick="toggleTaskComplete('${escHtml(task.id)}');event.stopPropagation();"`;
+    const deferBtn=(!isFaded&&!task.completed)?`<div class="stc-defer" title="Not today" onclick="deferTask('${escHtml(task.id)}');event.stopPropagation();">›</div>`:'';
     return`<div class="surfaced-task-card${fadeClass}" ${tapAttr}>
       <div class="stc-check${task.completed?' done':''}" ${checkClick}></div>
-      <div class="stc-body">
+      <div class="stc-body" ${!isFaded?`onclick="openTaskDetail('${escHtml(task.id)}');event.stopPropagation();" style="cursor:pointer;"`:''}>
         <div class="stc-title${task.completed?' done':''}">${escHtml(task.title)}</div>
         ${dlHtml}
         ${!isFaded?`<div class="stc-reason">${reason}</div>`:''}
       </div>
+      ${deferBtn}
     </div>`;
   }).join('');
   seeAll.style.display=hasMore?'block':'none';
@@ -3171,6 +3584,7 @@ function taskNext(){
     addTask(task);
     closeTaskModal();
     renderSurfacedTasks();
+    showToast('Task added');
   }
 }
 
@@ -3221,9 +3635,10 @@ function showAllTasks(){
   if(active.length){
     active.forEach(t=>{
       const dl=t.deadline?`<div style="font-size:11px;color:var(--cream-dim);margin-top:3px;">${fmtDeadline(t.deadline)}</div>`:'';
-      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:flex-start;">
-        <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();" style="margin-top:2px;flex-shrink:0;"></div>
-        <div><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
+      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:center;">
+        <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();event.stopPropagation();" style="margin-top:0;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;cursor:pointer;" onclick="openTaskDetail('${escHtml(t.id)}')"><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
+        <div onclick="deleteTask('${escHtml(t.id)}');event.stopPropagation();" style="font-size:16px;color:var(--cream-faint);cursor:pointer;padding:4px 0 4px 8px;flex-shrink:0;" title="Remove task">✕</div>
       </div>`;
     });
   }
@@ -3549,6 +3964,36 @@ function renderCycleCard(){
 }
 
 // ── Orchestrator ──────────────────────────────────────
+function renderBirthNudge(){
+  const wrap=document.getElementById('birth-nudge-wrap');
+  if(!wrap)return;
+  const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
+  if(!birth){
+    wrap.style.display='block';
+    wrap.innerHTML=`<div class="birth-nudge-card">
+      <div class="birth-nudge-icon">☽</div>
+      <div class="birth-nudge-body">
+        <div class="birth-nudge-title">Personalize your timing</div>
+        <div class="birth-nudge-desc">Add your birth data to see how the sky speaks to you personally — transits to your natal chart, tailored daily reads, and planetary timing that's uniquely yours.</div>
+        <button class="birth-nudge-btn" onclick="resetBirthData()">Add Birth Data →</button>
+      </div>
+    </div>`;
+  } else if(!birth.timeKnown||!birth.time){
+    wrap.style.display='block';
+    wrap.innerHTML=`<div class="birth-nudge-card">
+      <div class="birth-nudge-icon">⊙</div>
+      <div class="birth-nudge-body">
+        <div class="birth-nudge-title">Enhance your chart accuracy</div>
+        <div class="birth-nudge-desc">Adding your exact birth time unlocks precise house placements — the layer of the chart that shows where each planet's energy lands in your daily life.</div>
+        <button class="birth-nudge-btn" onclick="resetBirthData()">Add Birth Time →</button>
+      </div>
+    </div>`;
+  } else {
+    wrap.style.display='none';
+    wrap.innerHTML='';
+  }
+}
+
 function renderTodayScreen(){
   const now=new Date();
   const skyData=getSkyData(now,true);
@@ -3557,6 +4002,7 @@ function renderTodayScreen(){
 
   document.getElementById('today-greeting').textContent=generateGreeting(skyData,catScores);
   document.getElementById('daily-read-text').innerHTML=generateDailyRead(skyData,catScores);
+  renderBirthNudge();
   renderEnergyIndicators(catScores,skyData);
   renderSurfacedTasks();
   renderLunarSnapshot(skyData);
@@ -3680,7 +4126,7 @@ function buildMorningBriefText() {
   try {
     const sky = getSkyData(new Date(), true);
     const prefs = JSON.parse(localStorage.getItem('celestial_prefs') || '{}');
-    const cat = {finance:0,communication:1,'mind-body':2,spirit:3}[prefs.cultivating] ?? 0;
+    const cat = {building:0,healing:3,navigating:1,clarity:2,deepening:1,creating:3}[prefs.season] ?? 0;
     const score = scoreDay(sky, cat);
     const quality = score <= 2 ? 'flowing' : score === 3 ? 'neutral' : 'tense';
     const phase = Ephemeris.lunarPhaseName(sky.positions.Moon?.lon, sky.positions.Sun?.lon);
@@ -3726,7 +4172,31 @@ loadNatalChart(); // compute + cache natal positions before first render
 updateDateTime();
 setInterval(updateDateTime,30000);
 registerServiceWorker().then(() => maybeRequestNotifPermission());
+let _lastRenderDate=new Date().toDateString();
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&new Date().toDateString()!==_lastRenderDate){
+    _lastRenderDate=new Date().toDateString();
+    renderTodayScreen();
+  }
+});
 renderTodayScreen();
+_lastRenderDate=new Date().toDateString();
+
+// ── Supabase auth bootstrap ───────────────────────────
+if(supa){
+  // Restore existing session (e.g. user already signed in, or returning from magic link)
+  supa.auth.getSession().then(({data})=>{
+    _currentUser=data.session?.user??null;
+    updateAccountBtn();
+    if(_currentUser)syncTasksFromCloud();
+  });
+  // Listen for sign-in / sign-out events (including magic link redirect)
+  supa.auth.onAuthStateChange((_event,session)=>{
+    _currentUser=session?.user??null;
+    updateAccountBtn();
+    if(_currentUser){syncTasksFromCloud();syncPrefsToCloud();}
+  });
+}
 </script>
 </body>
 </html>
