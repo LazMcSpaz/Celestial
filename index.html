@@ -11,6 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 // EPHEMERIS ENGINE — Swiss-quality planetary calculations
@@ -980,6 +981,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="app-date" id="header-date">Loading...</div>
         <div onclick="openLocationSheet()" style="cursor:pointer;color:var(--gold);font-size:16px;padding:4px;" title="Change location">📍</div>
+        <div id="account-btn" onclick="openAuthSheet()" style="cursor:pointer;color:var(--cream-dim);font-size:15px;padding:4px;" title="Account">◯</div>
         <div onclick="openSettingsSheet()" style="cursor:pointer;color:var(--cream-dim);font-size:15px;padding:4px;" title="Settings">⚙</div>
       </div>
     </div>
@@ -1619,6 +1621,19 @@ function generateCategoryPicture(sky,cat){
   return sentences.join(' ')||`The sky is broadly neutral for ${catIntro[cat]} today.`;
 }
 // ═══════════════════════════════════════════════════════
+// SUPABASE CLIENT
+// Replace the two placeholder strings with your project URL and anon key
+// from Supabase dashboard → Settings → API
+// ═══════════════════════════════════════════════════════
+const SUPA_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPA_KEY = 'YOUR_ANON_KEY';
+const supa = (typeof supabase !== 'undefined')
+  ? supabase.createClient(SUPA_URL, SUPA_KEY)
+  : null; // graceful fallback when CDN unavailable (e.g. offline, test runner)
+let _currentUser = null;
+let _syncingFromCloud = false; // guard: prevents saveTasks → cloud → saveTasks loop
+
+// ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
 let activeScreen='today';
@@ -2209,6 +2224,7 @@ function finishOnboarding(){
   try{localStorage.setItem('celestial_onboarded','1');}catch(e){}
   natalChart=null; // clear in-memory cache so computeNatalChart re-reads fresh birth data
   computeNatalChart(); // pre-compute and cache natal chart while user sees the welcome screen
+  syncPrefsToCloud(); // fire-and-forget; no-op if not signed in
   hideOnboarding();
   maybeShowTourPrompt();
 }
@@ -2962,6 +2978,92 @@ document.getElementById('bottom-sheet').addEventListener('touchstart',e=>{sheetS
 document.getElementById('bottom-sheet').addEventListener('touchend',e=>{if(e.changedTouches[0].clientY-sheetStartY>60)closeSheet();},{passive:true});
 
 // ═══════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════
+function updateAccountBtn(){
+  const btn=document.getElementById('account-btn');
+  if(!btn)return;
+  if(_currentUser){
+    btn.textContent='●';
+    btn.style.color='var(--gold)';
+    btn.title='Account (signed in)';
+  } else {
+    btn.textContent='◯';
+    btn.style.color='var(--cream-dim)';
+    btn.title='Sign in';
+  }
+}
+
+function openAuthSheet(){
+  if(_currentUser){
+    // Already signed in — show account info + sign-out
+    openSheet(`
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:6px;">Your Account</div>
+      <div style="font-size:13px;color:var(--cream-dim);margin-bottom:24px;">${escHtml(_currentUser.email)}</div>
+      <button class="sheet-cta" style="margin-top:0;" onclick="signOut()">Sign out</button>
+    `);
+    return;
+  }
+  // Not signed in — show magic link form
+  openSheet(`
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:8px;">Sign in</div>
+    <div style="font-size:13px;color:var(--cream-dim);margin-bottom:20px;line-height:1.6;">Enter your email and we'll send you a magic link. No password needed.</div>
+    <input id="auth-email-input" type="email" placeholder="your@email.com"
+      style="width:100%;box-sizing:border-box;background:var(--surface-2,#1a1714);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--cream);font-family:'Jost',sans-serif;margin-bottom:14px;outline:none;">
+    <button class="sheet-cta" style="margin-top:0;" onclick="sendMagicLink()">Send magic link</button>
+    <div style="margin-top:14px;text-align:center;">
+      <span onclick="closeSheet()" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Continue without account</span>
+    </div>
+  `);
+  setTimeout(()=>{const el=document.getElementById('auth-email-input');if(el)el.focus();},350);
+}
+
+async function sendMagicLink(){
+  if(!supa){showToast('Supabase not configured');return;}
+  const el=document.getElementById('auth-email-input');
+  const email=(el?.value||'').trim();
+  if(!email||!email.includes('@')){showToast('Enter a valid email');return;}
+  const btn=document.querySelector('#sheet-content .sheet-cta');
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  const{error}=await supa.auth.signInWithOtp({email,options:{emailRedirectTo:location.href}});
+  if(error){
+    showToast('Error: '+error.message);
+    if(btn){btn.disabled=false;btn.textContent='Send magic link';}
+  } else {
+    openSheet(`
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:8px;">Check your email</div>
+      <div style="font-size:13px;color:var(--cream-dim);line-height:1.6;">A magic link is on its way to <strong>${escHtml(email)}</strong>. Click it to sign in — this tab will update automatically.</div>
+      <div style="margin-top:20px;text-align:center;">
+        <span onclick="closeSheet()" style="font-size:11px;color:var(--cream-faint);cursor:pointer;letter-spacing:.06em;">Dismiss</span>
+      </div>
+    `);
+  }
+}
+
+async function signOut(){
+  if(!supa)return;
+  await supa.auth.signOut();
+  _currentUser=null;
+  updateAccountBtn();
+  closeSheet();
+  showToast('Signed out');
+}
+
+async function syncPrefsToCloud(){
+  if(!supa||!_currentUser)return;
+  const prefs=JSON.parse(localStorage.getItem('celestial_prefs')||'{}');
+  try{
+    await supa.from('profiles').upsert({
+      id:_currentUser.id,
+      chronotype:prefs.chronotype||null,
+      work_style:prefs.workStyle||null,
+      season:prefs.season||null,
+      cultivating:prefs.cultivating||null,
+    },{onConflict:'id'});
+  }catch(e){console.warn('Celestial: prefs sync failed',e);}
+}
+
+// ═══════════════════════════════════════════════════════
 // TASK SYSTEM
 // ═══════════════════════════════════════════════════════
 
@@ -2970,8 +3072,61 @@ function loadTasks(){
   try{return JSON.parse(localStorage.getItem('celestial_tasks')||'[]');}
   catch(e){return[];}
 }
-function saveTasks(tasks){localStorage.setItem('celestial_tasks',JSON.stringify(tasks));}
+function saveTasks(tasks){
+  localStorage.setItem('celestial_tasks',JSON.stringify(tasks));
+  if(_currentUser&&!_syncingFromCloud)cloudUpsertTasks(tasks);
+}
 function addTask(task){const t=loadTasks();t.push(task);saveTasks(t);}
+
+// ── Cloud task helpers ────────────────────────────────
+function _taskToRow(t){
+  return{
+    id:t.id,
+    user_id:_currentUser.id,
+    title:t.title,
+    task_type:t.taskType,
+    energy_required:t.energyRequired,
+    emotional_weight:t.emotionalWeight,
+    repeating:t.repeating||'none',
+    deadline:t.deadline||null,
+    completed:!!t.completed,
+    completed_date:t.completedDate||null,
+    deferred_date:t.deferredDate||null,
+    history:t.history||[],
+    created_at:t.createdAt,
+  };
+}
+function _rowToTask(r){
+  return{
+    id:r.id,
+    title:r.title,
+    taskType:r.task_type,
+    energyRequired:r.energy_required,
+    emotionalWeight:r.emotional_weight,
+    repeating:r.repeating,
+    deadline:r.deadline,
+    completed:r.completed,
+    completedDate:r.completed_date,
+    deferredDate:r.deferred_date,
+    history:r.history||[],
+    createdAt:r.created_at,
+  };
+}
+async function cloudUpsertTasks(tasks){
+  if(!supa||!_currentUser)return;
+  try{await supa.from('tasks').upsert(tasks.map(_taskToRow),{onConflict:'id'});}
+  catch(e){console.warn('Celestial: cloud upsert failed',e);}
+}
+async function syncTasksFromCloud(){
+  if(!supa||!_currentUser)return;
+  const{data,error}=await supa.from('tasks').select('*').eq('user_id',_currentUser.id);
+  if(error||!data)return;
+  _syncingFromCloud=true;
+  saveTasks(data.map(_rowToTask));
+  _syncingFromCloud=false;
+  renderSurfacedTasks();
+  showToast('Tasks synced');
+}
 
 function seedDefaultTasks(){
   if(localStorage.getItem('celestial_tasks_seeded'))return;
@@ -3057,6 +3212,10 @@ function deleteTask(id){
   renderSurfacedTasks();
   updateAllTasksSheet();
   showToast('Task removed');
+  if(supa&&_currentUser){
+    supa.from('tasks').delete().eq('id',id).eq('user_id',_currentUser.id)
+      .then(({error})=>{if(error)console.warn('Celestial: cloud delete failed',error);});
+  }
 }
 function confirmDeleteTask(id){
   const task=loadTasks().find(t=>t.id===id);
@@ -4022,6 +4181,22 @@ document.addEventListener('visibilitychange',()=>{
 });
 renderTodayScreen();
 _lastRenderDate=new Date().toDateString();
+
+// ── Supabase auth bootstrap ───────────────────────────
+if(supa){
+  // Restore existing session (e.g. user already signed in, or returning from magic link)
+  supa.auth.getSession().then(({data})=>{
+    _currentUser=data.session?.user??null;
+    updateAccountBtn();
+    if(_currentUser)syncTasksFromCloud();
+  });
+  // Listen for sign-in / sign-out events (including magic link redirect)
+  supa.auth.onAuthStateChange((_event,session)=>{
+    _currentUser=session?.user??null;
+    updateAccountBtn();
+    if(_currentUser){syncTasksFromCloud();syncPrefsToCloud();}
+  });
+}
 </script>
 </body>
 </html>
