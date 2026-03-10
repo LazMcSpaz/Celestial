@@ -974,7 +974,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   <!-- SCREEN: TODAY -->
   <div id="screen-today" class="screen active">
     <div class="status-bar">
-      <span id="status-time">9:41</span><span>● ● ●</span>
+      <span id="status-time">9:41</span>
     </div>
     <div class="app-header">
       <div class="app-name">Celestial</div>
@@ -1006,6 +1006,10 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <div class="section-label">For Today</div>
         <div id="surfaced-tasks-list"></div>
         <div class="surfaced-see-all" id="see-all-tasks-link" style="display:none;" onclick="showAllTasks()">See all tasks →</div>
+      </div>
+      <!-- VIEW ALL TASKS -->
+      <div style="padding:4px 20px 8px;">
+        <button onclick="showAllTasks()" style="width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--cream-dim);font-family:'Jost',sans-serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">View All Tasks</button>
       </div>
       <!-- LUNAR SNAPSHOT -->
       <div class="dash-section" id="lunar-snapshot-wrap">
@@ -1095,7 +1099,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
   <!-- SCREEN: SKY -->
   <div id="screen-sky" class="screen">
-    <div class="status-bar"><span id="sky-time">9:41</span><span>● ● ●</span></div>
+    <div class="status-bar"><span id="sky-time">9:41</span></div>
     <div class="app-header">
       <div class="app-name">The Sky</div>
       <div class="app-date" id="sky-date">Now</div>
@@ -1112,7 +1116,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
   <!-- SCREEN: LEARN -->
   <div id="screen-learn" class="screen">
-    <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+    <div class="status-bar"><span>9:41</span></div>
     <div class="app-header"><div class="app-name">Learn</div><div class="app-date">Reference</div></div>
     <div class="scroll-area">
       <div class="learn-body">
