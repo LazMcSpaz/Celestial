@@ -3630,19 +3630,39 @@ function _populateConfirm(){
 // ── See all tasks ─────────────────────────────────────
 function showAllTasks(){
   const tasks=loadTasks();
-  const active=tasks.filter(t=>!t.completed);
+  const todayStr=new Date().toISOString().split('T')[0];
+  const scored=surfaceTasks(); // sorted by daily fit score, excludes completed & deferred-today
+  const deferredToday=tasks.filter(t=>!t.completed&&t.deferredDate===todayStr);
   const done=tasks.filter(t=>t.completed);
   let html=`<div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:16px;">All Tasks</div>`;
-  if(!active.length&&!done.length){
+  if(!scored.length&&!deferredToday.length&&!done.length){
     html+=`<div style="color:var(--cream-dim);font-size:13px;">No tasks yet. Tap + to add one.</div>`;
   }
-  if(active.length){
-    active.forEach(t=>{
-      const dl=t.deadline?`<div style="font-size:11px;color:var(--cream-dim);margin-top:3px;">${fmtDeadline(t.deadline)}</div>`:'';
-      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:center;">
+  if(scored.length){
+    scored.forEach(({task,catScore})=>{
+      const reason=getSurfaceReason(task,catScore);
+      const dl=task.deadline?`<div style="font-size:11px;color:var(--cream-dim);margin-top:3px;">${fmtDeadline(task.deadline)}</div>`:'';
+      html+=`<div style="padding:12px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:flex-start;">
+        <div class="stc-check${task.completed?' done':''}" onclick="toggleTaskComplete('${escHtml(task.id)}');updateAllTasksSheet();event.stopPropagation();" style="margin-top:2px;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;cursor:pointer;" onclick="openTaskDetail('${escHtml(task.id)}')">
+          <div style="font-size:14px;color:var(--cream);">${escHtml(task.title)}</div>
+          ${dl}
+          <div style="font-size:11px;color:var(--cream-dim);margin-top:4px;font-style:italic;line-height:1.5;">${reason}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:center;flex-shrink:0;">
+          <div onclick="deferTask('${escHtml(task.id)}');event.stopPropagation();" style="font-size:18px;color:var(--cream-faint);cursor:pointer;padding:2px 4px;line-height:1;" title="Not today">›</div>
+          <div onclick="deleteTask('${escHtml(task.id)}');event.stopPropagation();" style="font-size:15px;color:var(--cream-faint);cursor:pointer;padding:2px 4px;line-height:1;" title="Remove task">✕</div>
+        </div>
+      </div>`;
+    });
+  }
+  if(deferredToday.length){
+    html+=`<div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--cream-faint);margin-top:16px;margin-bottom:4px;">Not Today</div>`;
+    deferredToday.forEach(t=>{
+      html+=`<div style="padding:10px 0;border-bottom:1px solid var(--border-dim);display:flex;gap:12px;align-items:center;opacity:0.45;">
         <div class="stc-check" onclick="toggleTaskComplete('${escHtml(t.id)}');updateAllTasksSheet();event.stopPropagation();" style="margin-top:0;flex-shrink:0;"></div>
-        <div style="flex:1;min-width:0;cursor:pointer;" onclick="openTaskDetail('${escHtml(t.id)}')"><div style="font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>${dl}</div>
-        <div onclick="deleteTask('${escHtml(t.id)}');event.stopPropagation();" style="font-size:16px;color:var(--cream-faint);cursor:pointer;padding:4px 0 4px 8px;flex-shrink:0;" title="Remove task">✕</div>
+        <div style="flex:1;min-width:0;font-size:14px;color:var(--cream);">${escHtml(t.title)}</div>
+        <div onclick="deleteTask('${escHtml(t.id)}');event.stopPropagation();" style="font-size:15px;color:var(--cream-faint);cursor:pointer;padding:4px 0 4px 8px;flex-shrink:0;" title="Remove task">✕</div>
       </div>`;
     });
   }
