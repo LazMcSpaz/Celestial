@@ -57,7 +57,8 @@ This is the layer current tests barely touch. It is the centre of this plan (Lay
 | `test_birth_charts.js` | 59 | Natal charts for Diana / Obama / Einstein within Swiss-Ephemeris tolerance; sign matches exact | L1 natal |
 | `test_personalization.js` | 29 | Same date→two users differ; same user→two dates differ; orb filtering; score modifiers | L2 personalization |
 | `test_accuracy.js` | 245 | Field population, display logic, score-system correctness, phase-quality table completeness | L3 logic |
-| **Total** | **365** | | |
+| `test_consistency.js` | 105 | Cross-spot/cross-screen rendering agreement — boots real app under a DOM shim and compares what each UI spot displays | L5 consistency |
+| **Total** | **470** | | |
 
 **Run all:** `TZ=UTC node verify_positions.js && TZ=UTC node test_birth_charts.js && TZ=UTC node test_personalization.js && TZ=UTC node test_accuracy.js`
 
@@ -120,10 +121,28 @@ This is a new suite (`test_copy_integrity.js`) run as a **combinatorial fuzz swe
 5. **Faithfulness to the math:** every astrological claim in the prose corresponds to a value `getSkyData`/`getPersonalTransits` actually returned for that input (no hallucinated aspects). Implement by tagging composition output with the source values and asserting each rendered claim traces back.
 6. **Coverage of fragment tables:** assert every key in MYTH, MOON_SIGN_DESC, MOON_PHASE_QUALITY, ZODIAC_DESCS, ASPECTS, catIntro is reachable and non-empty — and that the renderers have a fallback when a value is genuinely absent (the `||` fallbacks like "The sky is broadly neutral…" should be deliberately exercised, not accidentally hit).
 
-### Layer 5 — End-to-end dashboard consistency
+### Layer 5 — End-to-end dashboard consistency  ✅ *(initial suite delivered: `test_consistency.js`, 105 checks)*
 *Goal: the whole screen agrees with itself for a real user on a real day.*
 
-- A headless render test (jsdom or Playwright) that boots the app with a seeded user + frozen date and asserts the **rendered DOM**:
+**Delivered:** `test_consistency.js` boots the real app code under a lightweight
+capturing-DOM shim (no jsdom dependency — keeps the zero-dep pattern), with a
+frozen clock and seeded birth/location, then reads back what each spot actually
+rendered and asserts agreement across a (2 users × 6 dates) sweep:
+- Today lunar card ↔ Sky screen show the **same Moon sign**.
+- Daily-read Moon description matches the lunar card's sign.
+- Retrograde set is **identical** between the dashboard card and the Sky screen.
+- Prose never calls a planet retrograde that the engine didn't flag.
+- Energy tiles: exactly 4, labels/classes drawn only from the canonical sets.
+- The two score→label and score→class systems share the **same severity** at every score.
+- Lookup tables (MOON_SIGN_DESC, MOON_PHASE_QUALITY) are complete so no spot falls back differently.
+- No `undefined`/`NaN`/`[object Object]`/empty-fragment leaks in any visible spot.
+- Determinism: two independent boots of the same instant render byte-identical spots.
+
+**Still open (follow-on):**
+- Energy-indicator color ↔ numeric score (assert tile class index == score, not just membership).
+- Surfaced tasks ↔ "all tasks for today" ordering (surfaced = score-sorted prefix).
+- A real browser pass (Playwright) for layout/visual regressions the shim can't see.
+- Earlier idea retained: a headless render test that boots the app with a seeded user + frozen date and asserts the **rendered DOM**:
   - greeting, daily read, the 4 energy indicators, surfaced tasks, "coming up" all derive from the *same* `skyData` snapshot;
   - energy-indicator colors match the numeric category scores;
   - "See all tasks for today" list is ordered by score;
