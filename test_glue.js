@@ -146,6 +146,10 @@ sec('6 ·  Minor bodies land in the correct sign (Lilith rate fix)');
   assert('Chiron in Aries in early 2025 (~19°, matches reference)', chiron(2025,1,1).sign === 'Aries', `${chiron(2025,1,1).sign} ${chiron(2025,1,1).lon.toFixed(1)}°`);
   assert('Chiron at the Pisces→Aries cusp on 2018-04-20', Math.abs(chiron(2018,4,20).lon - 360) < 1 || chiron(2018,4,20).lon < 1,
          `${chiron(2018,4,20).sign} ${chiron(2018,4,20).lon.toFixed(1)}°`);
+  // True North Node (oscillating) — matches astro.com's default True Node.
+  const node = E.calculate(new Date(Date.UTC(2024,7,1,12)), 0, null, false).positions['North Node'];
+  assert('True North Node is ~8.5° Aries on 2024-08-01 (matches astro.com True Node)',
+         node.sign === 'Aries' && Math.abs(node.lon - 8.47) < 0.5, `${node.sign} ${node.lon.toFixed(2)}°`);
 }
 
 // ════════════════════════════════════════════════════════════════════════════

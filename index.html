@@ -197,8 +197,21 @@ const Ephemeris = (() => {
   }
 
   function northNodeLongitude(jd) {
-    const t = julCent(jd);
-    return mod360(125.0445 - 1934.1362 * t + 0.0020708 * t * t);
+    // True (oscillating) North Node — the mean node plus the dominant periodic
+    // terms of lunar theory. Matches astro.com's default True Node (the mean node
+    // alone can differ by up to ~1.8°). D/M/M'/F are the standard lunar arguments.
+    const T  = julCent(jd);
+    const Om = 125.0445479 - 1934.1362891 * T + 0.0020754 * T * T;
+    const D  = 297.8501921 + 445267.1114034 * T;
+    const M  = 357.5291092 +  35999.0502909 * T;
+    const Mp = 134.9633964 + 477198.8675055 * T;
+    const F  =  93.2720950 + 483202.0175233 * T;
+    const corr = -1.4979 * sind(2 * (D - F))
+                 -0.1500 * sind(M)
+                 -0.1226 * sind(2 * D)
+                 +0.1176 * sind(2 * F)
+                 -0.0801 * sind(2 * (Mp - F));
+    return mod360(Om + corr);
   }
 
   function lilithlongitude(jd) {
