@@ -194,6 +194,20 @@ sec('8 ·  Surfaced tasks are a prefix of the "all tasks" list ordering');
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────
+sec('9 ·  Greeting tone reconciles with the energy tiles (no contradiction)');
+{
+  const api = boot(NOW, birthSeed());
+  const sky = api.getSkyData(new Date(NOW), true);
+  const gHard = api.generateGreeting(sky, [5,5,5,5]); // force all caution/challenging tiles
+  const leadsPositive = /graces|aligned|good day for/.test(gHard);
+  assert('an all-caution day with a positive-leading greeting carries a reconciling hedge',
+         !leadsPositive || /asks for care/.test(gHard), gHard);
+  const gSoft = api.generateGreeting(sky, [2,2,2,2]); // force all favorable tiles
+  const leadsNegative = /presses against|in friction/.test(gSoft);
+  assert('an all-favorable day with a negative-leading greeting carries a reconciling hedge',
+         !leadsNegative || /broader sky is gentle/.test(gSoft), gSoft);
+}
+
 console.log(`\n${B}${C}${'═'.repeat(64)}${R}`);
 console.log(`  Results: ${G}${passed} passed${R}, ${failed?RED:''}${failed} failed${R}`);
 console.log(`${B}${C}${'═'.repeat(64)}${R}`);

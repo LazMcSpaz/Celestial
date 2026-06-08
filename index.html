@@ -3849,6 +3849,16 @@ const CAT_CLOSINGS=[
 ];
 
 // ── Greeting ─────────────────────────────────────────
+// When the greeting leads with a personal/aspect tone that clashes with the day's
+// overall energy tiles, add a short reconciling clause so the two don't contradict.
+function greetingHedge(catScores,tone){
+  const hard=catScores.filter(s=>s>=4).length;       // caution / challenging tiles
+  const soft=catScores.filter(s=>s>=2&&s<=3).length; // favorable / optimal tiles
+  if(tone==='positive'&&hard>=3) return ' Hold it lightly — the wider sky asks for care today.';
+  if(tone==='negative'&&soft>=3) return ' Even so, the broader sky is gentle today — let it carry you.';
+  return '';
+}
+
 function generateGreeting(skyData,catScores){
   // Tight personal transit takes priority (orb < 2°)
   const personalTransits=getPersonalTransits(skyData);
@@ -3857,7 +3867,7 @@ function generateGreeting(skyData,catScores){
     const m1=mythLabel(tight.transitPlanet),m2=mythLabel(tight.natalPlanet);
     const harmWord=tight.harmony==='positive'?'graces':tight.harmony==='negative'?'presses against':'closely meets';
     const hint=NATAL_ASP_HINTS[tight.transitPlanet]?.[tight.harmony]||'a personal note colors the sky';
-    return`${m1} ${harmWord} your natal ${m2} — ${hint}.`;
+    return`${m1} ${harmWord} your natal ${m2} — ${hint}.`+greetingHedge(catScores,tight.harmony);
   }
   // Retrograde check (prioritised order)
   for(const p of['Mercury','Venus','Mars','Saturn','Jupiter']){
@@ -3871,14 +3881,14 @@ function generateGreeting(skyData,catScores){
     const t=pos[0];
     const m1=mythLabel(t.p1),m2=mythLabel(t.p2);
     const hint=DOMAIN_HINTS[t.p1]||DOMAIN_HINTS[t.p2]||'focused action';
-    return`${m1} and ${m2} are aligned — a good day for ${hint}.`;
+    return`${m1} and ${m2} are aligned — a good day for ${hint}.`+greetingHedge(catScores,'positive');
   }
   // Best negative aspect
   const neg=skyData.aspects.filter(a=>a.harmony==='negative').sort((a,b)=>a.diff-b.diff);
   if(neg.length){
     const t=neg[0];
     const m1=mythLabel(t.p1),m2=mythLabel(t.p2);
-    return`${m1} and ${m2} are in friction today — move thoughtfully.`;
+    return`${m1} and ${m2} are in friction today — move thoughtfully.`+greetingHedge(catScores,'negative');
   }
   // Moon sign fallback
   const moon=skyData.positions['Moon'];
