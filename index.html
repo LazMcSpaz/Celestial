@@ -166,8 +166,14 @@ const Ephemeris = (() => {
   }
 
   function lilithlongitude(jd) {
-    const t = julCent(jd);
-    return mod360(83.3532 + 40.6602 * t);
+    // Black Moon Lilith = mean lunar apogee = mean perigee longitude + 180°.
+    // Mean perigee of the Moon's orbit (Meeus, Astronomical Algorithms):
+    //   83.3532465 + 4069.0137287·T − 0.0103200·T² − T³/80053
+    // The previous coefficient (40.6602/century) was wrong by ~100× — the apse
+    // line precesses ~4069°/century (period ≈ 8.85 yr), not ~40°.
+    const T = julCent(jd);
+    const perigee = 83.3532465 + 4069.0137287 * T - 0.0103200 * T * T - (T * T * T) / 80053;
+    return mod360(perigee + 180);
   }
 
   // ── ZODIAC ────────────────────────────────────────────
@@ -245,14 +251,27 @@ const Ephemeris = (() => {
 
   // ── MAIN CALCULATE ────────────────────────────────────
   // userLocation: { lat, lon } or null. useCurrentTime: true for live readings (houses shift hourly).
-  function calculate(date, tzOffsetHours = 0, userLocation = null, useCurrentTime = false) {
-    const utcDate = new Date(date.getTime() - tzOffsetHours * 3600000);
-    // For calendar days use local noon (12:00 in the user's timezone = 12 - tzOffsetHours in UTC).
-    // This ensures the MC is near the Sun at noon, which is the correct empirical check.
-    const hour = useCurrentTime
-      ? (utcDate.getHours() + utcDate.getMinutes() / 60)
-      : 12 - tzOffsetHours;
-    const jd = jdn(utcDate.getFullYear(), utcDate.getMonth() + 1, utcDate.getDate(), hour);
+  function calculate(date, tzOffsetHours = 0, userLocation = null, useCurrentTime = false, isAbsoluteInstant = false) {
+    // Three time modes:
+    //  • isAbsoluteInstant — `date` is an absolute moment (live "now"). Use its TRUE
+    //    UTC components; positions and the GMST-based ascendant both need UT. This is
+    //    host-timezone-independent. (The old code subtracted tzOffset from an
+    //    already-absolute instant and re-read host-local getters, double-applying the
+    //    offset — up to a full day off when the device tz differed from the location.)
+    //  • useCurrentTime (non-absolute) — natal chart with a known birth time: `date`
+    //    carries the birth wall-clock; convert to UT by subtracting tzOffset.
+    //  • neither — a calendar day: use local noon (12 − tzOffset in UTC).
+    let jd;
+    if (isAbsoluteInstant) {
+      jd = jdn(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(),
+               date.getUTCHours() + date.getUTCMinutes() / 60);
+    } else {
+      const utcDate = new Date(date.getTime() - tzOffsetHours * 3600000);
+      const hour = useCurrentTime
+        ? (utcDate.getHours() + utcDate.getMinutes() / 60)
+        : 12 - tzOffsetHours;
+      jd = jdn(utcDate.getFullYear(), utcDate.getMonth() + 1, utcDate.getDate(), hour);
+    }
 
     const planetKeys = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Chiron','North Node','Black Moon Lilith'];
     const positions = {};
@@ -1247,6 +1266,17 @@ function loadNatalChart(){
   return computeNatalChart();
 }
 
+// Format a stored birth time for display. birth.time is an object
+// {hour24,minute,hour12,ampm}; tolerate a legacy "HH:MM" string.
+function fmtBirthTime(t){
+  if(!t)return'';
+  if(typeof t==='string')return t;
+  const h=t.hour12!=null?t.hour12:(t.hour24!=null?((t.hour24%12)||12):null);
+  if(h==null)return'';
+  const ap=t.ampm||(t.hour24!=null?(t.hour24>=12?'PM':'AM'):'AM');
+  return`${h}:${String(t.minute||0).padStart(2,'0')} ${ap}`;
+}
+
 function computeNatalChart(){
   try{
     const birth=JSON.parse(localStorage.getItem('celestial_birth')||'null');
@@ -1254,13 +1284,21 @@ function computeNatalChart(){
     const d=birth.date;
     const birthDate=new Date(d.year,d.month-1,d.day);
     if(birth.timeKnown&&birth.time){
-      const parts=birth.time.split(':');
-      birthDate.setHours(+parts[0],+(parts[1]||0),0,0);
+      // birth.time is stored by onboarding as an object {hour24,minute,...};
+      // tolerate a legacy "HH:MM" string too. (The old code assumed a string and
+      // threw on the object, silently nulling the whole natal chart — which
+      // disabled all personalization for every user who entered a birth time.)
+      let h=0,mi=0;
+      if(typeof birth.time==='string'){const parts=birth.time.split(':');h=+parts[0];mi=+(parts[1]||0);}
+      else{h=+(birth.time.hour24!=null?birth.time.hour24:(birth.time.hour||0));mi=+(birth.time.minute||0);}
+      birthDate.setHours(h,mi,0,0);
     }
     const birthLoc=(birth.lat!=null&&birth.lon!=null)?{lat:birth.lat,lon:birth.lon}:null;
     const tz=getTzOffset(birth.timezone,birthDate);
     const useTime=!!(birth.timeKnown&&birth.time);
-    const natal=Ephemeris.calculate(birthDate,tz,birthLoc,useTime);
+    // Pass location only when the birth time is known — otherwise houses/Ascendant/MC
+    // would be fabricated from a noon guess and shown alongside an "unknown time" note.
+    const natal=Ephemeris.calculate(birthDate,tz,useTime?birthLoc:null,useTime);
     natalChart={positions:natal.positions,ascDegree:natal.ascDegree,mcDegree:natal.mcDegree,houses:natal.houses,jd:natal.jd};
     try{localStorage.setItem('celestial_natal',JSON.stringify(natalChart));}catch(e){}
     return natalChart;
@@ -1269,13 +1307,13 @@ function computeNatalChart(){
 
 // Descriptions for how each transiting planet feels when aspecting a natal planet
 const NATAL_ASP_HINTS={
-  Sun:     {positive:'vitality and purpose flow into this area of your life',negative:'ego and will are under pressure here — breathe through it'},
-  Moon:    {positive:'emotional attunement opens naturally today',negative:'feelings surface here that are asking for your attention'},
-  Mercury: {positive:'thought and expression reach this part of your chart with clarity',negative:'communication carries extra weight in this area today'},
-  Venus:   {positive:'warmth and openness touch this corner of your life',negative:'values or connections here may feel strained'},
-  Mars:    {positive:'energy and initiative are available for this part of your life',negative:'friction or urgency may be felt here — move deliberately'},
-  Jupiter: {positive:'expansion and good fortune are reaching this area',negative:'overreach or restlessness may color this part of the chart'},
-  Saturn:  {positive:'patience and structure are paying off here',negative:'resistance or limitation is the teacher in this area today'},
+  Sun:     {positive:'vitality and purpose flow into this area of your life',negative:'ego and will are under pressure here — breathe through it',neutral:'your sense of self and this part of your life are merging right now'},
+  Moon:    {positive:'emotional attunement opens naturally today',negative:'feelings surface here that are asking for your attention',neutral:'feeling and this area of your life are closely intertwined today'},
+  Mercury: {positive:'thought and expression reach this part of your chart with clarity',negative:'communication carries extra weight in this area today',neutral:'your thoughts keep returning to this part of your chart'},
+  Venus:   {positive:'warmth and openness touch this corner of your life',negative:'values or connections here may feel strained',neutral:'what you value and this corner of your life are drawing together'},
+  Mars:    {positive:'energy and initiative are available for this part of your life',negative:'friction or urgency may be felt here — move deliberately',neutral:'your drive is concentrated on this part of your life'},
+  Jupiter: {positive:'expansion and good fortune are reaching this area',negative:'overreach or restlessness may color this part of the chart',neutral:'this area of your life is being amplified and brought forward'},
+  Saturn:  {positive:'patience and structure are paying off here',negative:'resistance or limitation is the teacher in this area today',neutral:'weight and focus are settling onto this part of your chart'},
 };
 
 // Returns transit→natal aspects sorted by tightness (orb), filtered to meaningful pairs.
@@ -1335,9 +1373,17 @@ function scoreDay(sky,cat){
 function getTzOffset(ianaName, date) {
   if (!ianaName) return 0;
   try {
-    const utc   = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const local = new Date(date.toLocaleString('en-US', { timeZone: ianaName }));
-    return (local - utc) / 3600000;
+    // Derive the offset from the absolute instant via formatToParts — host-invariant.
+    // The old toLocaleString round-trip re-parsed a wall-clock string in the HOST
+    // timezone, so when that time landed on the device's own DST transition the
+    // offset came back wrong (off by the host's DST amount), breaking the rule that
+    // the same birth moment must yield the same chart on every device.
+    const dtf = new Intl.DateTimeFormat('en-US', { timeZone: ianaName, hourCycle: 'h23',
+      year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const p = {};
+    for (const part of dtf.formatToParts(date)) if (part.type !== 'literal') p[part.type] = part.value;
+    return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - date.getTime()) / 3600000;
   } catch(e) { return 0; }
 }
 
@@ -1360,7 +1406,7 @@ function getSkyData(date,isLive=false){
   const tz=getTzOffset(userLocation?.timezone,date);
   const key=date.toDateString()+(userLocation?.timezone||'UTC')+(userLocation?userLocation.lat+','+userLocation.lon:'')+(isLive?'L':'');
   if(skyCache&&skyCacheDate===key)return skyCache;
-  skyCache=Ephemeris.calculate(date,tz,userLocation,isLive);
+  skyCache=Ephemeris.calculate(date,tz,userLocation,isLive,isLive); // isLive ⇒ date is an absolute "now" instant
   skyCacheDate=key;
   return skyCache;
 }
@@ -2666,7 +2712,7 @@ function openSettingsSheet(){
   if(birth&&birth.date){
     const d=birth.date;
     const dateStr=`${d.month}/${d.day}/${d.year}`;
-    const timeStr=birth.timeKnown&&birth.time?birth.time:'time unknown';
+    const timeStr=birth.timeKnown&&birth.time?fmtBirthTime(birth.time):'time unknown';
     const cityStr=birth.cityName||'location unknown';
     birthSummary=`${dateStr} · ${timeStr} · ${cityStr}`;
   }
@@ -2743,7 +2789,7 @@ function openBirthChartSheet(){
   const d=birth.date||{};
   const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const dateStr=d.year?`${MONTHS[(d.month||1)-1]} ${d.day}, ${d.year}`:'Unknown date';
-  const timeStr=birth.timeKnown&&birth.time?birth.time:'Time unknown';
+  const timeStr=birth.timeKnown&&birth.time?fmtBirthTime(birth.time):'Time unknown';
   const locStr=birth.cityName||'Unknown location';
   const timeNote=!birth.timeKnown?'<div style="margin-top:6px;font-size:11px;color:var(--cream-faint);font-style:italic;">Birth time unknown — house placements and Ascendant require an exact time.</div>':'';
 
@@ -3296,7 +3342,7 @@ function surfaceTasks(){
   let skyData=null;
   if(loc){
     const tzOff=getTzOffset(loc.timezone,now);
-    skyData=calculate(now,tzOff,{lat:loc.lat,lon:loc.lon},true);
+    skyData=calculate(now,tzOff,{lat:loc.lat,lon:loc.lon},true,true); // live "now" = absolute instant
   }
   const catScores=skyData?[0,1,2,3].map(c=>scoreDay(skyData,c)):[0,0,0,0];
   const phase=skyData?skyData.phase:0.5;
@@ -3382,7 +3428,8 @@ function surfaceTasks(){
 
 function getSurfaceReason(task,catScore){
   if(task.deadline){
-    const daysUntil=Math.floor((new Date(task.deadline+' 00:00:00')-new Date())/(86400000));
+    const _midnight=new Date();_midnight.setHours(0,0,0,0); // anchor to local midnight, matching surfaceTasks/fmtDeadline
+    const daysUntil=Math.floor((new Date(task.deadline+' 00:00:00')-_midnight)/(86400000));
     if(daysUntil<0)return'This task is overdue.';
     if(daysUntil===0)return'Due today — now is the moment.';
     if(daysUntil===1)return'Your deadline arrives tomorrow.';
@@ -3626,7 +3673,12 @@ function _populateConfirm(){
 // ── See all tasks ─────────────────────────────────────
 function showAllTasks(){
   const tasks=loadTasks();
-  const active=tasks.filter(t=>!t.completed);
+  // Order active tasks by the same surfacing score the dashboard uses, so the
+  // surfaced cards are a true prefix of this list (no divergence between spots).
+  // Tasks not scored by surfaceTasks (e.g. deferred today) keep insertion order at the end.
+  const rank=new Map(surfaceTasks().map((s,i)=>[s.task.id,i]));
+  const active=tasks.filter(t=>!t.completed)
+    .sort((a,b)=>(rank.has(a.id)?rank.get(a.id):Infinity)-(rank.has(b.id)?rank.get(b.id):Infinity));
   const done=tasks.filter(t=>t.completed);
   let html=`<div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;color:var(--cream);margin-bottom:16px;">All Tasks</div>`;
   if(!active.length&&!done.length){
