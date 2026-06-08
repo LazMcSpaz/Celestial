@@ -272,15 +272,22 @@ info(`Obama transits: ${obamaTransits.join(', ')||'none'}`);
 assert('Diana and Obama see different personal transit lists (different advice content)',
   JSON.stringify(dianaTransits) !== JSON.stringify(obamaTransits));
 
-// Secondary: verify scores diverge on at least one of the known-diverging dates (Dec 30 / Jul 4)
-const dianaFull = dianaScores.map(d=>d.full.score);
-const obamaFull = obamaScores.map(d=>d.full.score);
-const dDec30scores = [0,1,2,3].map(c => scoreDayWithNatal(dec30, c, DIANA).score);
-const oDec30scores = [0,1,2,3].map(c => scoreDayWithNatal(dec30, c, OBAMA).score);
-const scoresDifferSomewhere = dDec30scores.some((s,i) => s !== oDec30scores[i]);
-assert('Diana and Obama receive different category scores on Dec 30 (personalization produces divergent outcomes)',
-  scoresDifferSomewhere,
-  `Diana Dec 30: [${dDec30scores}]  Obama Dec 30: [${oDec30scores}]`);
+// Secondary: personalization must make the two charts diverge across the year.
+// (A single hard-coded date is brittle — on any given day the two can coincide
+// once scores clamp to 0–5, so we sweep a range and require divergence on many.)
+let divergentDays = 0, sweepDays = 0;
+for (let off = 0; off < 60; off++) {
+  const dt = new Date(Date.UTC(2024, 0, 1 + off * 6, 12)); // every ~6 days across the year
+  const sky = Ephemeris.calculate(dt, 0, null, false);
+  const dS = [0,1,2,3].map(c => scoreDayWithNatal(sky, c, DIANA).score);
+  const oS = [0,1,2,3].map(c => scoreDayWithNatal(sky, c, OBAMA).score);
+  sweepDays++;
+  if (dS.some((s,i) => s !== oS[i])) divergentDays++;
+}
+info(`Diana vs Obama diverged on ${divergentDays}/${sweepDays} sampled days across 2024`);
+assert('Diana and Obama receive different category scores on a substantial share of days (personalization is real)',
+  divergentDays >= sweepDays * 0.4,
+  `${divergentDays}/${sweepDays} days diverged`);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEST 5 — SCORE MODIFIER DIRECTION

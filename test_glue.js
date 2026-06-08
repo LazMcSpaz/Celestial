@@ -139,6 +139,13 @@ sec('6 ·  Minor bodies land in the correct sign (Lilith rate fix)');
   const lil2026 = E.calculate(new Date(Date.UTC(2026,0,1,12)), 0, null, false).positions['Black Moon Lilith'];
   const moved = Math.abs(((lil2026.lon - lil2025.lon)%360+360)%360);
   assert('Lilith advances ~40° over one year (rate sane)', moved > 30 && moved < 50, `${moved.toFixed(1)}° / yr`);
+
+  // Chiron — verified against known sign ingresses (Keplerian model).
+  const chiron = (y,m,d) => E.calculate(new Date(Date.UTC(y,m-1,d,12)), 0, null, false).positions['Chiron'];
+  assert('Chiron in Sagittarius on 2000-01-01', chiron(2000,1,1).sign === 'Sagittarius', `${chiron(2000,1,1).sign} ${chiron(2000,1,1).lon.toFixed(1)}°`);
+  assert('Chiron in Aries in early 2025 (~19°, matches reference)', chiron(2025,1,1).sign === 'Aries', `${chiron(2025,1,1).sign} ${chiron(2025,1,1).lon.toFixed(1)}°`);
+  assert('Chiron at the Pisces→Aries cusp on 2018-04-20', Math.abs(chiron(2018,4,20).lon - 360) < 1 || chiron(2018,4,20).lon < 1,
+         `${chiron(2018,4,20).sign} ${chiron(2018,4,20).lon.toFixed(1)}°`);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
