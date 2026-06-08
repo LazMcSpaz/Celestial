@@ -58,7 +58,13 @@ This is the layer current tests barely touch. It is the centre of this plan (Lay
 | `test_personalization.js` | 29 | Same date→two users differ; same user→two dates differ; orb filtering; score modifiers | L2 personalization |
 | `test_accuracy.js` | 245 | Field population, display logic, score-system correctness, phase-quality table completeness | L3 logic |
 | `test_consistency.js` | 105 | Cross-spot/cross-screen rendering agreement — boots real app under a DOM shim and compares what each UI spot displays | L5 consistency |
-| **Total** | **470** | | |
+| `test_glue.js` | 43 | Production glue the value-suites bypass — `computeNatalChart` birth-time parsing, unknown-time house suppression, `getTzOffset` host-invariance, live-UTC instant, Lilith/Chiron/True-Node signs, surface-reason↔deadline agreement, surfaced=prefix, greeting↔tiles reconciliation, repeating cadence | glue/regression |
+| **Total** | **513** | | |
+
+> Run everything under three host timezones to guard against TZ leakage:
+> `for Z in UTC America/New_York Asia/Kolkata; do TZ=$Z node verify_positions.js && TZ=$Z node test_birth_charts.js && TZ=$Z node test_personalization.js && TZ=$Z node test_accuracy.js && TZ=$Z node test_consistency.js && TZ=$Z node test_glue.js; done`
+>
+> **Accuracy fixes shipped** (see git history): natal birth-time parsing (was nulling every birth-time chart), host-invariant `getTzOffset`, live-sky true-UTC instant, unknown-time house suppression, Black Moon Lilith rate, Chiron Keplerian model, **VSOP87D outer planets (Saturn/Uranus/Neptune <0.01°)**, True North Node, plus surfacing/recurrence/greeting fixes. The `test_harness.js` shared boot harness drives the real app under a DOM shim.
 
 **Run all:** `TZ=UTC node verify_positions.js && TZ=UTC node test_birth_charts.js && TZ=UTC node test_personalization.js && TZ=UTC node test_accuracy.js`
 
