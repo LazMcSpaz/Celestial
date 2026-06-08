@@ -553,7 +553,7 @@ body{
   --border:rgba(201,168,76,0.18);--border-dim:rgba(255,255,255,0.06);
   --nav-h:64px;--safe-bottom:env(safe-area-inset-bottom,0px);
 }
-#app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--black);}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;background:transparent;z-index:1;}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;bottom:calc(var(--nav-h) + var(--safe-bottom));overflow:hidden;}
 .screen.active{display:flex;}
 .scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
@@ -856,6 +856,40 @@ body{
 .loc-active-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:6px 12px;border-radius:20px;border:1px solid rgba(74,124,89,.4);background:rgba(74,124,89,.12);color:#7dcf9e;margin-bottom:14px;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .screen.active .scroll-area{animation:fadeIn .3s ease;}
+
+/* ── Living-sky atmosphere ─────────────────────────────── */
+#starfield{position:fixed;inset:0;z-index:0;pointer-events:none;}
+#day-tint{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(120% 80% at 50% -10%, rgba(201,168,76,0.05), transparent 70%);
+  transition:background 1.4s ease;}
+
+/* ── Motion & transitions ──────────────────────────────── */
+.screen.active{animation:screenIn .5s cubic-bezier(.22,.61,.36,1);}
+@keyframes screenIn{from{opacity:0;transform:translateY(8px) scale(.996)}to{opacity:1;transform:none}}
+.screen.active .scroll-area>*{animation:fadeUp .55s cubic-bezier(.22,.61,.36,1) both;}
+.screen.active .scroll-area>*:nth-child(1){animation-delay:.04s}
+.screen.active .scroll-area>*:nth-child(2){animation-delay:.10s}
+.screen.active .scroll-area>*:nth-child(3){animation-delay:.16s}
+.screen.active .scroll-area>*:nth-child(4){animation-delay:.22s}
+.screen.active .scroll-area>*:nth-child(5){animation-delay:.28s}
+.screen.active .scroll-area>*:nth-child(6){animation-delay:.34s}
+.screen.active .scroll-area>*:nth-child(n+7){animation-delay:.40s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* tactile tap feedback */
+.surfaced-task-card,.ei-tile,.lunar-card,.aspect-card{transition:transform .12s ease, box-shadow .25s ease;}
+.surfaced-task-card:active,.ei-tile:active,.lunar-card:active,.aspect-card:active{transform:scale(.975);}
+.nav-item:active{transform:scale(.92);}
+.nav-item.active .ni-icon{transform:translateY(-1px) scale(1.08);}
+
+/* task completion shimmer */
+.stc-check.done{animation:checkPop .5s cubic-bezier(.34,1.56,.64,1);}
+@keyframes checkPop{0%{transform:scale(.6)}45%{transform:scale(1.2);box-shadow:0 0 14px 3px rgba(201,168,76,.5)}100%{transform:scale(1);box-shadow:none}}
+
+@media (prefers-reduced-motion: reduce){
+  .screen.active,.screen.active .scroll-area,.screen.active .scroll-area>*,.stc-check.done{animation:none !important;}
+  #starfield{display:none;}
+}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4;}
 
 /* ── DASHBOARD REDESIGN ───────────────────────────────── */
@@ -1001,6 +1035,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 </style>
 </head>
 <body>
+<canvas id="starfield" aria-hidden="true"></canvas>
+<div id="day-tint" aria-hidden="true"></div>
 <div id="app">
 
   <!-- ONBOARDING (multi-step) -->
@@ -4138,6 +4174,14 @@ function renderTodayScreen(){
   todaySky=skyData;
   const catScores=[0,1,2,3].map(c=>scoreDay(skyData,c));
 
+  // Day-energy backdrop tint: warmer gold on favorable days, cooler on caution days.
+  const _tintEl=document.getElementById('day-tint');
+  if(_tintEl){
+    const hard=catScores.filter(s=>s>=4).length, soft=catScores.filter(s=>s>=2&&s<=3).length;
+    const tint=soft>=3?'rgba(201,168,76,0.10)':hard>=3?'rgba(86,116,150,0.07)':'rgba(201,168,76,0.05)';
+    _tintEl.style.background=`radial-gradient(120% 80% at 50% -10%, ${tint}, transparent 70%)`;
+  }
+
   document.getElementById('today-greeting').textContent=generateGreeting(skyData,catScores);
   document.getElementById('daily-read-text').innerHTML=generateDailyRead(skyData,catScores);
   renderBirthNudge();
@@ -4303,9 +4347,50 @@ function schedulePlanetaryAlerts() {
 }
 
 // ═══════════════════════════════════════════════════════
+// LIVING-SKY STARFIELD — drifting, twinkling backdrop
+// ═══════════════════════════════════════════════════════
+function initStarfield(){
+  const canvas=document.getElementById('starfield');
+  const ctx=canvas&&canvas.getContext&&canvas.getContext('2d');
+  if(!ctx)return; // no canvas (e.g. test harness) — atmosphere is purely decorative
+  let w,h,stars=[];
+  function seed(){
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    w=canvas.width=Math.floor((window.innerWidth||390)*dpr);
+    h=canvas.height=Math.floor((window.innerHeight||844)*dpr);
+    canvas.style.width=(window.innerWidth||390)+'px';
+    canvas.style.height=(window.innerHeight||844)+'px';
+    const count=Math.round((w*h)/(14000*dpr));
+    stars=Array.from({length:Math.max(40,Math.min(150,count))},()=>({
+      x:Math.random()*w, y:Math.random()*h, r:(Math.random()*1.1+0.3)*dpr,
+      base:Math.random()*0.45+0.2, tw:Math.random()*6.283, sp:Math.random()*0.6+0.2,
+      drift:(Math.random()*0.035+0.008)*dpr, gold:Math.random()<0.16,
+    }));
+  }
+  seed();
+  if(window.addEventListener)window.addEventListener('resize',seed);
+  let last=0;
+  function frame(t){
+    if(t-last>40){ last=t;
+      ctx.clearRect(0,0,w,h);
+      for(const s of stars){
+        s.tw+=0.02*s.sp; s.y+=s.drift; if(s.y>h+2){s.y=-2;s.x=Math.random()*w;}
+        const a=Math.max(0,s.base+Math.sin(s.tw)*0.25);
+        ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,6.2832);
+        ctx.fillStyle=s.gold?`rgba(201,168,76,${a})`:`rgba(240,232,216,${a*0.8})`;
+        ctx.fill();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 seedDefaultTasks();
+initStarfield();
 loadNatalChart(); // compute + cache natal positions before first render
 updateDateTime();
 setInterval(updateDateTime,30000);
