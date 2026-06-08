@@ -127,6 +127,7 @@ const EXPORT_EPILOGUE = `
   generateGreeting, generateDailyRead,
   computeNatalChart, loadNatalChart, fmtBirthTime, getTzOffset,
   surfaceTasks, showAllTasks, getSurfaceReason, fmtDeadline,
+  toggleTaskComplete, loadTasks, rollDueRepeats,
   get natalChart(){ return natalChart; },
   QUALITY_NAMES, SCORE_LABEL_D, SCORE_CLASS_D, CLASS_MAP,
   MOON_SIGN_DESC, MOON_PHASE_QUALITY, RETROGRADE_NOTES, NATAL_ASP_HINTS, MYTH, PLANETS,

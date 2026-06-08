@@ -3247,6 +3247,12 @@ function toggleTaskComplete(id){
       if(!t.history)t.history=[];
       t.history.push({date:todayStr,action:'completed'});
       if(t.history.length>30)t.history=t.history.slice(-30);
+      // Repeating task with a deadline: advance it to the next occurrence.
+      const iv=repeatDays(t.repeating);
+      if(iv&&t.deadline){
+        const d=new Date(t.deadline+'T00:00:00');d.setDate(d.getDate()+iv);
+        t.deadline=d.toISOString().split('T')[0];
+      }
     }
   }
   saveTasks(tasks);
@@ -3382,8 +3388,29 @@ function getCyclePhase(){
 }
 
 // ── Surfacing algorithm ───────────────────────────────
-function surfaceTasks(){
+// ── Repeating-task cadence ────────────────────────────
+const REPEAT_DAYS={daily:1,weekly:7,biweekly:14,monthly:30};
+function repeatDays(rep){return REPEAT_DAYS[rep]||0;}
+function daysBetween(aStr,bStr){return Math.floor((new Date(bStr+'T00:00:00')-new Date(aStr+'T00:00:00'))/86400000);}
+// A completed repeating task becomes due again only after its cadence interval
+// has elapsed (a weekly task no longer re-surfaces the next day). Resetting the
+// completed flag also restores its checkbox to unchecked. Persists if changed.
+function rollDueRepeats(){
   const tasks=loadTasks();
+  const todayStr=new Date().toISOString().split('T')[0];
+  let changed=false;
+  for(const t of tasks){
+    const iv=repeatDays(t.repeating);
+    if(iv&&t.completed&&t.completedDate&&daysBetween(t.completedDate,todayStr)>=iv){
+      t.completed=false;t.completedDate=null;changed=true;
+    }
+  }
+  if(changed)saveTasks(tasks);
+  return tasks;
+}
+
+function surfaceTasks(){
+  const tasks=rollDueRepeats();
   if(!tasks.length)return[];
   const loc=JSON.parse(localStorage.getItem('celestial_loc')||'null');
   const now=new Date();
@@ -3405,7 +3432,7 @@ function surfaceTasks(){
   const seasonCat=seasonCatBoost[prefs.season]??null;
   return tasks
     .filter(t=>t.deferredDate!==todayStr)
-    .filter(t=>!t.completed||(t.repeating&&t.repeating!=='none'&&t.completedDate!==todayStr))
+    .filter(t=>!t.completed||(repeatDays(t.repeating)>0&&(!t.completedDate||daysBetween(t.completedDate,todayStr)>=repeatDays(t.repeating))))
     .map(t=>{
       let score=getAdaptiveBias(t);
       const cat=typeToCategory[t.taskType]??0;

@@ -208,6 +208,33 @@ sec('9 ·  Greeting tone reconciles with the energy tiles (no contradiction)');
          !leadsNegative || /broader sky is gentle/.test(gSoft), gSoft);
 }
 
+sec('10 ·  Repeating tasks honor their cadence (weekly ≠ daily; deadline rolls)');
+{
+  // NOW = 2026-06-08. Seed completed repeating tasks at various past dates.
+  const tasks = JSON.stringify([
+    { id:'wk_recent', title:'Weekly recent',  taskType:'administrative', repeating:'weekly', completed:true, completedDate:'2026-06-07' }, // 1 day ago → NOT due
+    { id:'wk_due',    title:'Weekly due',     taskType:'administrative', repeating:'weekly', completed:true, completedDate:'2026-05-31' }, // 8 days ago → due
+    { id:'day_due',   title:'Daily',          taskType:'reflective',     repeating:'daily',  completed:true, completedDate:'2026-06-07' }, // yesterday → due
+    { id:'mo_recent', title:'Monthly recent', taskType:'administrative', repeating:'monthly',completed:true, completedDate:'2026-05-20' }, // 19 days ago → NOT due
+  ]);
+  const api = boot(NOW, { ...birthSeed(), celestial_tasks: tasks });
+  const surfaced = new Set(api.surfaceTasks().map(s => s.task.id));
+  assert('a weekly task completed yesterday does NOT re-surface', !surfaced.has('wk_recent'));
+  assert('a weekly task completed 8 days ago DOES re-surface', surfaced.has('wk_due'));
+  assert('a daily task completed yesterday DOES re-surface', surfaced.has('day_due'));
+  assert('a monthly task completed 19 days ago does NOT re-surface', !surfaced.has('mo_recent'));
+  // Re-surfaced repeating tasks are reset to incomplete (checkbox unchecked).
+  const due = api.loadTasks().find(t => t.id === 'wk_due');
+  assert('a re-surfaced repeating task is reset to not-completed', due && due.completed === false, `completed=${due&&due.completed}`);
+
+  // Completing a repeating task with a deadline rolls the deadline forward by one cadence.
+  const t2 = JSON.stringify([{ id:'rent', title:'Rent', taskType:'administrative', repeating:'monthly', deadline:'2026-06-08', completed:false }]);
+  const api2 = boot(NOW, { ...birthSeed(), celestial_tasks: t2 });
+  api2.toggleTaskComplete('rent');
+  const rent = api2.loadTasks().find(t => t.id === 'rent');
+  assert('completing a monthly task rolls its deadline ~30 days forward', rent && rent.deadline === '2026-07-08', `deadline=${rent&&rent.deadline}`);
+}
+
 console.log(`\n${B}${C}${'═'.repeat(64)}${R}`);
 console.log(`  Results: ${G}${passed} passed${R}, ${failed?RED:''}${failed} failed${R}`);
 console.log(`${B}${C}${'═'.repeat(64)}${R}`);
